@@ -1,15 +1,16 @@
 # dump1090.socket30003
 
 dump1090.socket30003.pl
- Collects dump1090 flight positions using socket30003 and save them in csv format.
+* Collects dump1090 flight positions using socket30003 and save them in csv format.
 dump1090.socket30003.heatmap.pl
- Reads the flight positions from files in csv format and creates point for a heatmap.
+* Reads the flight positions from files in csv format and creates point for a heatmap.
 dump1090.socket30003.radar.pl
- Reads the flight positions from files in csv format and creates a radar map.
+* Reads the flight positions from files in csv format and creates a radar map.
 
 0.1 version
 
----------------------HELP PAGE dump1090.socket30003.pl---------------------
+* Help page dump1090.socket30003.pl
+````
 This dump1090.socket30003.pl script can retrieve flight data (lat, lon and alt) from a dump1090 host using port
 30003 and calcutates the distance and angle between the antenna and the plane. It will store these 
 values in a file in csv format (seperated by commas).
@@ -51,8 +52,10 @@ Examples:
 	dump1090.socket30003.pl -peer 192.168.1.10 -stop
 
 Pay attention: to stop an instance: Don't forget to specify the same peer host.
----------------------OUTPUT dump1090.socket30003.pl--------------------------------
-default outputfile: /tmp/dump1090.socket30003.pl-192_168_11_34-150830.txt
+````
+# Output dump1090.socket30003.pl
+* Default outputfile: /tmp/dump1090.socket30003.pl-192_168_11_34-150830.txt (dump1090.socket30003.pl-<IP-ADDRESS-PEER>-<date>.txt)
+````
 header: hex_ident,altitude(feet),latitude,longitude,date,time,direction,distance(meter)
 data:
 4010DB,35000,52.31159,5.65019,2015/08/30,17:48:55.481,67.1801766700598,45756.6730179409
@@ -65,7 +68,9 @@ data:
 4CA9B4,26900,51.54399,5.28992,2015/08/30,17:48:55.603,160.416360285161,61786.3690908337
 478535,37000,51.88899,5.57732,2015/08/30,17:48:55.631,112.766312936825,39947.5126386791
 4249BD,3725,52.19934,4.85542,2015/08/30,17:48:55.647,-63.0644110287155,20348.0966975414
----------------------HELP PAGE dump1090.socket30003.heatmap.pl---------------------
+````
+# Help page dump1090.socket30003.heatmap.pl
+````
 This dump1090.socket30003.heatmap.pl script can create heatmap data
 
 Syntax: dump1090.socket30003.heatmap.pl
@@ -78,8 +83,10 @@ Optional parameters:
 Examples:
 	dump1090.socket30003.heatmap.pl 
 	dump1090.socket30003.heatmap.pl -data /home/pi
----------------------OUTPUT dump1090.socket30003.heatmap.pl----------------------
-output file: /tmp/graph1.csv
+````
+# Output dump1090.socket30003.heatmap.pl
+* Default output file: /tmp/heatmap.csv
+````
 type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude,latitude,longitude,date,time,angle,distance
 T,1,Altitude zone 1: 00000- 3000,yellow,1,    0,-143,44D991,1825,51.18549,4.40218,2015/08/17,14:50:34.875,-143.768514490891,110742.048628643
 T,0,Altitude zone 1: 00000- 3000,yellow,2,    0,-142,44D991,2675,51.18709,4.36372,2015/08/17,14:50:08.608,-142.218127849853,111744.222386486
@@ -90,8 +97,9 @@ T,0,Altitude zone 1: 00000- 3000,yellow,6,    0,-113,484BCD,1925,51.87749,4.5983
 T,0,Altitude zone 1: 00000- 3000,yellow,7,    0,-112,484BCD,1925,51.86591,4.53721,2015/08/17,14:23:51.021,-112.529875618193,45004.9231205215
 T,0,Altitude zone 1: 00000- 3000,yellow,8,    0,-111,44D991,2050,51.12048,2.48551,2015/08/17,14:33:01.602,-111.012812371387,209373.761058365
 T,0,Altitude zone 1: 00000- 3000,yellow,9,    0,-110,44D991,2650,51.11998,2.47987,2015/08/17,14:32:58.166,-110.980857750807,209737.525203623
-
----------------------HELP PAGE dump1090.socket30003.radar.pl---------------------
+````
+# Help page dump1090.socket30003.radar.pl
+````
 This dump1090.socket30003.radar.pl script can sort flight data (lat, lon and alt).
 
 Syntax: dump1090.socket30003.radar.pl
@@ -114,9 +122,10 @@ Notes:
 Examples:
 	dump1090.socket30003.radar.pl 
 	dump1090.socket30003.radar.pl -data /home/pi
-
----------------------OUTPUT dump1090.socket30003.radar.pl---------------------
-output file: radar.csv
+````
+# Output dump1090.socket30003.radar.pl
+* Default output file: /tmp/radar.csv
+````
 {location: new google.maps.LatLng(51.025, 3.1), weight: 706},
 {location: new google.maps.LatLng(50.925, 4.4), weight: 706},
 {location: new google.maps.LatLng(50.837, 4.775), weight: 706},
@@ -128,4 +137,4 @@ output file: radar.csv
 {location: new google.maps.LatLng(52.437, 3.662), weight: 705},
 {location: new google.maps.LatLng(52.362, 6.2), weight: 705},
 {location: new google.maps.LatLng(52.35, 5.5), weight: 705},
-
+````
