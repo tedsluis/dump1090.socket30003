@@ -9,7 +9,7 @@ dump1090.socket30003.radar.pl
 
 0.1 version
 
-* Help page dump1090.socket30003.pl
+# Help page dump1090.socket30003.pl
 ````
 This dump1090.socket30003.pl script can retrieve flight data (lat, lon and alt) from a dump1090 host using port
 30003 and calcutates the distance and angle between the antenna and the plane. It will store these 
