@@ -87,16 +87,18 @@ Examples:
 # Output dump1090.socket30003.heatmap.pl
 * Default output file: /tmp/heatmap.csv
 ````
-type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude,latitude,longitude,date,time,angle,distance
-T,1,Altitude zone 1: 00000- 3000,yellow,1,    0,-143,44D991,1825,51.18549,4.40218,2015/08/17,14:50:34.875,-143.768514490891,110742.048628643
-T,0,Altitude zone 1: 00000- 3000,yellow,2,    0,-142,44D991,2675,51.18709,4.36372,2015/08/17,14:50:08.608,-142.218127849853,111744.222386486
-T,0,Altitude zone 1: 00000- 3000,yellow,3,    0,-131,484BCE,1900,51.61959,4.54590,2015/08/17,09:12:40.772,-131.800165083269,63848.8835462889
-T,0,Altitude zone 1: 00000- 3000,yellow,4,    0,-115,484BCD,1900,51.83739,4.54752,2015/08/17,14:22:53.568,-115.531263666627,46243.1709127753
-T,0,Altitude zone 1: 00000- 3000,yellow,5,    0,-114,44049F,2850,51.86472,4.59243,2015/08/17,23:48:20.523,-114.869577276237,41956.5893649617
-T,0,Altitude zone 1: 00000- 3000,yellow,6,    0,-113,484BCD,1925,51.87749,4.59830,2015/08/17,14:20:59.489,-113.843637113441,40805.7445058548
-T,0,Altitude zone 1: 00000- 3000,yellow,7,    0,-112,484BCD,1925,51.86591,4.53721,2015/08/17,14:23:51.021,-112.529875618193,45004.9231205215
-T,0,Altitude zone 1: 00000- 3000,yellow,8,    0,-111,44D991,2050,51.12048,2.48551,2015/08/17,14:33:01.602,-111.012812371387,209373.761058365
-T,0,Altitude zone 1: 00000- 3000,yellow,9,    0,-110,44D991,2650,51.11998,2.47987,2015/08/17,14:32:58.166,-110.980857750807,209737.525203623
+{location: new google.maps.LatLng(51.025, 3.1), weight: 706},
+{location: new google.maps.LatLng(50.925, 4.4), weight: 706},
+{location: new google.maps.LatLng(50.837, 4.775), weight: 706},
+{location: new google.maps.LatLng(50.75, 4.612), weight: 706},
+{location: new google.maps.LatLng(50.7, 4.562), weight: 706},
+{location: new google.maps.LatLng(52.837, 5.475), weight: 705},
+{location: new google.maps.LatLng(52.537, 4.025), weight: 705},
+{location: new google.maps.LatLng(52.512, 5.75), weight: 705},
+{location: new google.maps.LatLng(52.437, 3.662), weight: 705},
+{location: new google.maps.LatLng(52.362, 6.2), weight: 705},
+{location: new google.maps.LatLng(52.35, 5.5), weight: 705},
+
 ````
 # Help page dump1090.socket30003.radar.pl
 ````
@@ -126,15 +128,15 @@ Examples:
 # Output dump1090.socket30003.radar.pl
 * Default output file: /tmp/radar.csv
 ````
-{location: new google.maps.LatLng(51.025, 3.1), weight: 706},
-{location: new google.maps.LatLng(50.925, 4.4), weight: 706},
-{location: new google.maps.LatLng(50.837, 4.775), weight: 706},
-{location: new google.maps.LatLng(50.75, 4.612), weight: 706},
-{location: new google.maps.LatLng(50.7, 4.562), weight: 706},
-{location: new google.maps.LatLng(52.837, 5.475), weight: 705},
-{location: new google.maps.LatLng(52.537, 4.025), weight: 705},
-{location: new google.maps.LatLng(52.512, 5.75), weight: 705},
-{location: new google.maps.LatLng(52.437, 3.662), weight: 705},
-{location: new google.maps.LatLng(52.362, 6.2), weight: 705},
-{location: new google.maps.LatLng(52.35, 5.5), weight: 705},
+type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude,latitude,longitude,date,time,angle,distance
+T,1,Altitude zone 1: 00000- 3000,yellow,1,    0,-143,44D991,1825,51.18549,4.40218,2015/08/17,14:50:34.875,-143.768514490891,110742.048628643
+T,0,Altitude zone 1: 00000- 3000,yellow,2,    0,-142,44D991,2675,51.18709,4.36372,2015/08/17,14:50:08.608,-142.218127849853,111744.222386486
+T,0,Altitude zone 1: 00000- 3000,yellow,3,    0,-131,484BCE,1900,51.61959,4.54590,2015/08/17,09:12:40.772,-131.800165083269,63848.8835462889
+T,0,Altitude zone 1: 00000- 3000,yellow,4,    0,-115,484BCD,1900,51.83739,4.54752,2015/08/17,14:22:53.568,-115.531263666627,46243.1709127753
+T,0,Altitude zone 1: 00000- 3000,yellow,5,    0,-114,44049F,2850,51.86472,4.59243,2015/08/17,23:48:20.523,-114.869577276237,41956.5893649617
+T,0,Altitude zone 1: 00000- 3000,yellow,6,    0,-113,484BCD,1925,51.87749,4.59830,2015/08/17,14:20:59.489,-113.843637113441,40805.7445058548
+T,0,Altitude zone 1: 00000- 3000,yellow,7,    0,-112,484BCD,1925,51.86591,4.53721,2015/08/17,14:23:51.021,-112.529875618193,45004.9231205215
+T,0,Altitude zone 1: 00000- 3000,yellow,8,    0,-111,44D991,2050,51.12048,2.48551,2015/08/17,14:33:01.602,-111.012812371387,209373.761058365
+T,0,Altitude zone 1: 00000- 3000,yellow,9,    0,-110,44D991,2650,51.11998,2.47987,2015/08/17,14:32:58.166,-110.980857750807,209737.525203623
+
 ````
