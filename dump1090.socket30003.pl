@@ -1,14 +1,16 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-08-20
+# Ted Sluis 2015-09-01
 # Filename : dump1090.socket30003.pl
 #
 #===============================================================================
 # Default setting:
-my $PEER_HOST = '127.0.0.1'; # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
-my $defaultdatadirectory = "/tmp";
-my $defaultlogdirectory = "/tmp";
-my $defaultpiddirectory = "/tmp";
-my $TIME_MESSAGE_MARGIN = 10; # max acceptable margin between messages in milliseconds.
+my $PEER_HOST             = '127.0.0.1'; # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
+my $defaultdatadirectory  = "/tmp";
+my $defaultlogdirectory   = "/tmp";
+my $defaultpiddirectory   = "/tmp";
+my $defaultdistancemetric = "kilometer"; # kilometer, nauticalmile, mile, meter
+my $defaultaltitudemetric = "meter"; # meter, feet
+my $TIME_MESSAGE_MARGIN   = 10; # max acceptable margin between messages in milliseconds.
 my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
 #
 #===============================================================================
@@ -119,11 +121,15 @@ my $peerhost;
 my $time_message_margin;
 my $lon;
 my $lat;
+my $nopositions;
 GetOptions(
 	"restart!"=>\$restart,
 	"stop!"=>\$stop,
 	"status!"=>\$status,
 	"help!"=>\$help,
+	"distancemetric=s"=>\$defaultdistancemetric,
+	"altitudemetric=s"=>\$defaultaltitudemetric,
+	"nopositions!"=>\$nopositions,
 	"data=s"=>\$datadirectory,
 	"log=s"=>\$logdirectory,
 	"pid=s"=>\$piddirectory,
@@ -163,10 +169,19 @@ Optional parameters:
 	-pid  <pid directory>		The pid file is stored in /tmp by default.
 	-msgmargin <max message margin> The max message margin is 10ms by default.
 	-lon <lonitude>			Location of your antenna.
-	-lat <latitude>			
+	-lat <latitude>
+	-distancematric <matric>        Type of matric: kilometer, nauticalmile, mile or meter
+	                                Default distance matric is kilometer.
+	-altitudematric <matric>	Type of matric: meter or feet.
+					Default altitude matric is meter.
+        -nopositions                    Does not display the number of position when running
+                                        interactive (launched from commandline).
+	-help				This help page.
 
 Notes: 
-- To launch it as a background process, add '&'.
+- To launch it as a background process, add '&' or run it from crontab:
+  0 * * * * <path>/dump1090.socket30003.pl
+  (This command checks if it ran every hour and relauch it if nessesary.)
 - The default values can be change within the script (in the most upper section).
 
 
@@ -176,7 +191,38 @@ Examples:
 	$scriptname -peer 192.168.1.10 -stop\n
 Pay attention: to stop an instance: Don't forget to specify the same peer host.\n\n";
 	exit;
+}
+# defaultdestinationmetric
+if ($defaultdistancemetric) {
+	if ($defaultdistancemetric =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
+		$defaultdistancemetric = lc($defaultdistancemetric);
+	} else {
+		print "The default distance metric '$defaultdistancemetric' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
+		exit 1;
+	}
+} else { 
+	$defaultdistancemetric = "kilometer";
 } 
+# defaultaltitudemetric
+if ($defaultaltitudemetric) {
+	if ($defaultaltitudemetric =~ /^meter$|^feet$/i) {
+		$defaultaltitudemetric = lc($defaultaltitudemetric);
+	} else {
+		print "The default altitude metric '$defaultaltitudemetric' is invalid! It should be one of these: meter or feet.\n";
+		exit 1;
+	}
+} else { 
+	$defaultaltitudemetric = "meter";
+}
+print "Using '$defaultdistancemetric' the distance and '$defaultaltitudemetric' for the altitude.\n";
+#
+# Compose filedate
+sub filedate(@) {
+	my $hostalias = shift;
+	my ($second,$day,$month,$year,$minute) = (localtime)[0,3,4,5,1];
+	my $filedate = $scriptname.'-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
+}
+#
 # Are the specified directories for data, log and pid file writeable?
 $datadirectory = $defaultdatadirectory if (!$datadirectory);
 if (!-w $datadirectory) {
@@ -200,13 +246,15 @@ my @ping =`ping -w 4 -c 1 $PEER_HOST`;
 my $result;
 foreach my $output (@ping) {
 	# rtt min/avg/max/mdev = 162.207/162.207/162.207/0.000 ms
-        if ($output =~ /=\s\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\sms/) {
+        if ($output =~ /=\s*\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\/\d{1,4}\.\d{1,4}\s*ms/) {
 		$result = "ok";	
 	}
 }
 if (!$result) {
 	print "Unable to connect to peer host '$PEER_HOST'!\n";
 	exit 1;
+} else {
+	print "Tring to connect to peer host '$PEER_HOST'...\n";
 }
 # Was a time message margin specified?
 $TIME_MESSAGE_MARGIN = $time_message_margin if ($time_message_margin);
@@ -217,15 +265,16 @@ if (($TIME_MESSAGE_MARGIN < 1) || ($TIME_MESSAGE_MARGIN > 2000)) {
 }
 # longitude & latitude
 $longitude = $lon if ($lon);
-if ($longitude !~ /^\d+(\.\d+)?$/) {
+if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print "The specified longitude '$longitude' is invalid!\n";
 	exit 1;
 }
 $latitude = $lat if ($lat);
-if ($latitude !~ /^\d+(\.\d+)?$/) {
+if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print"The specified latitude '$latitude' is invalid!\n";
 	exit 1;
 }
+print "The antenna latitude & longitude are: '$latitude','$longitude'\n";
 #
 #===============================================================================
 # Socket that reads data from the PEER_HOST over port 30003.
@@ -289,11 +338,18 @@ sub distance(@) {
     	my ($lat1,$lon1,$lat2,$lon2) = @_;
     	my $theta = $lon1 - $lon2;
     	my $dist = rad2deg(acos(sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta))));
-  	my $dist_mile = $dist * 69.09;             # mile
-   	my $dist_meter = $dist * 111189.57696;     # meter
-   	my $dist_kilometer = $dist * 111.18957696; # kilometer
-    	my $dist_nauticalmile = $dist * 59.997756; # nautical mile
-    	return $dist_meter; # Google maps can use meters....
+	my $distance;
+	# calculate the required metric:
+	if ($defaultdistancemetric =~ /^mile$/) {
+  		$distance = int($dist * 69.09 * 100) / 100;        # mile
+	} elsif ($defaultdistancemetric =~ /^meter$/) {
+   		$distance = int($dist * 111189.57696);             # meter
+	} elsif ($defaultdistancemetric =~ /^nauticalmile$/) {
+    		$distance = int($dist * 59.997756 * 100) / 100;    # nautical mile
+	} else {
+   		$distance = int($dist * 111.18957696 * 100) / 100; # kilometer
+	}
+    	return $distance;
 }
 #
 #===============================================================================
@@ -331,6 +387,8 @@ sub Check_pid(@){
 # Compose pid file
 my $hostalias = $PEER_HOST;
 $hostalias =~ s/\./_/g if ($hostalias =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
+print "The data directory/file is: $datadirectory/".filedate($hostalias).".txt\n";
+print "The log  directory/file is: $datadirectory/".filedate($hostalias).".log\n";
 my $pidfile = "$piddirectory/$scriptname-$hostalias.pid";
 # 
 if (-e $pidfile) {
@@ -401,7 +459,7 @@ if (! -e $pidfile) {
 	print "Unable to create '$pidfile'! '$scriptname' ($pid) is not starting....\n";
 	exit 1;
 } else {
-	print "'$scriptname' ($pid) is started!\n";
+	print "'$scriptname' ($pid) is started!\nUsing pidfile $pidfile.\n";
 }
 #
 #===============================================================================
@@ -524,7 +582,14 @@ while ($message = <$SOCKET>){
 	}
 	# Save Altitude and datetime
 	if ($col[$hdr{'altitude'}] =~ /[123456789]/) {
-		$flight{$hex_ident}{'altitude'} = $col[$hdr{'altitude'}];
+		my $altitude = $col[$hdr{'altitude'}];
+		if ($defaultaltitudemetric =~ /^meter$/) {
+			# save feet as meters:
+			$flight{$hex_ident}{'altitude'} = int($altitude / 3.2828);
+		} else {
+			# save as feet:
+			$flight{$hex_ident}{'altitude'} = int($altitude);
+		}
 		$flight{$hex_ident}{'altitude_loggedtime'} = $loggeddatetime;
 	}
 	# Be sure that the requiered fields (longitude, latitude and altitude) for this flight are captured:
@@ -547,7 +612,7 @@ while ($message = <$SOCKET>){
 	$flight{$hex_ident}{'position_count'}++;
 	$position_count++;
 	# Get angle and distance
-	my $angle = angle($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'});
+	my $angle = int(angle($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'}) * 100) / 100;
 	my $distance = distance($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'});	
 	# Write the data to the data file:
 	print $data_filehandle "$hex_ident,$flight{$hex_ident}{'altitude'},$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'},$col[$hdr{'logged_date'}],$col[$hdr{'logged_time'}],$angle,$distance\n";
@@ -559,9 +624,9 @@ while ($message = <$SOCKET>){
         $flight{$hex_ident}{'Prev_lat_loggedtime'}      = $flight{$hex_ident}{'lat_loggedtime'};
         $flight{$hex_ident}{'prev_altitude_loggedtime'} = $flight{$hex_ident}{'altitude_loggedtime'};
 	# Display statistics when running interactive:
-	if ($interactive) {
-		my $back = length $position_count;
-                print $position_count, substr "\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
+	if (($interactive) && (!$nopositions)) {
+		my $back = length "positions:".$position_count;
+                print "positions:".$position_count, substr "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
 	}
 
 }
