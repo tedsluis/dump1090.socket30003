@@ -41,8 +41,8 @@ Optional parameters:
 	-lat <latitude>			
 	-distancematric <matric>        Type of matric: kilometer, nauticalmile, mile or meter
 	                                Default distance matric is kilometer.
-	-altitudematric <matric>	Type of matric: meter or feet.
-					Default altitude matric is meter.
+	-altitudematric <matric>        Type of matric: meter or feet.
+	                                Default altitude matric is meter.
 	-nopositions                    Does not display the number of position when running
 	                                interactive (launched from commandline).
 	-help                           This help page.
