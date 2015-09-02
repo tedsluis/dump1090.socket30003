@@ -182,7 +182,7 @@ Notes:
 - To launch it as a background process, add '&' or run it from crontab:
   0 * * * * <path>/dump1090.socket30003.pl
   (This command checks if it ran every hour and relauch it if nessesary.)
-- The default values can be change within the script (in the most upper section).
+- The default values can be changed within the script (in the most upper section).
 
 
 Examples:

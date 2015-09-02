@@ -81,7 +81,7 @@ Optional parameters:
 	-help				This help page.
 
 note: 
-	The default values can be change within the script (in the most upper section).
+	The default values can be changed within the script (in the most upper section).
 
 
 Examples:
