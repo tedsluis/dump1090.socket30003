@@ -8,11 +8,9 @@
 my $default_datadirectory = "/tmp";
 my $outputfile ="heatmap.csv";
 my ($latitude,$longitude) = (52.085624,5.0890591); # Antenna location
-my $lat1 = $latitude  - 5; # most westerly latitude
-my $lat2 = $latitude  + 5; # most easterly latitude
-my $lon1 = $longitude - 5; # most northerly longitude
-my $lon2 = $longitude + 5; # most southerly longitude
-my $max_positions = 100000;
+my $degrees = 3;                  # used to determine boundary of area around antenne.
+my $resolution = 1000;            # number of horizontal and vertical positions in output file.
+my $max_positions = 100000;       # maximum number of positions in the outputfile.
 #
 #===============================================================================
 use strict;
@@ -54,6 +52,8 @@ GetOptions(
         "longitude=s"=>\$lon,
         "latitude=s"=>\$lat,
 	"maxpositions=s"=>\$max_positions,
+	"resolution=s"=>\$resolution,
+	"degrees=s"=>\$degrees,
 ) or exit(1);
 #
 #===============================================================================
@@ -69,6 +69,11 @@ Optional parameters:
         -lon <lonitude>                 Location of your antenna.
         -lat <latitude>
 	-maxpositions <max positions>   Default is 100000 positions.
+	-resolution <number>		Number of horizontal and vertical positions in output file.
+					Default is 1000x1000
+	-degrees <number>		To determine boundary of area around antenna.
+					(lat-degree -- lat+degree) x (lon-degree -- lon+degree)
+					De default is 5 degree.
 	-help				This help page.
 
 note: 
@@ -81,6 +86,33 @@ Examples:
 	$scriptname -lat 52.1 -lon 4.1 -maxposition 50000\n\n";
 	exit 0;
 }
+#===============================================================================
+# Resolution, Degrees & Factor
+if ($resolution) {
+	if ($resolution !~ /^\d{2,5}$/) {
+                print "The resolution '$resolution' is invalid!\n";
+                print "It should be between 10 and 99999.\n";
+                exit;
+        }
+} else {
+        $resolution = 1000;
+}
+if ($degrees) {
+        if ($degrees !~ /^\d{1,2}(\.\d{1,4})?$/) {
+                print "The given number of degrees '$degrees' is invalid!\n";
+                print "It should be between 0.0001 and 99.9999 degrees.\n";
+                exit;
+        }
+} else {
+        $degrees = 3;
+}
+my $factor = int($resolution / ($degrees * 2));
+# area around antenna
+my $lat1 = int(($latitude  - $degrees) * 1000) / 1000; # most westerly latitude
+my $lat2 = int(($latitude  + $degrees) * 1000) / 1000; # most easterly latitude
+my $lon1 = int(($longitude - $degrees) * 1000) / 1000; # most northerly longitude
+my $lon2 = int(($longitude + $degrees) * 1000) / 1000; # most southerly longitude
+print "The resolution op the heatmap will be ${resolution}x${resolution}.\n";
 #===============================================================================
 # Max positions
 if ($max_positions) {
@@ -112,7 +144,8 @@ if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print"The specified latitude '$latitude' is invalid!\n";
 	exit 1;
 }
-print "The antenna latitude & longitude are: '$latitude','$longitude'\n";
+print "The antenna latitude & longitude are: '$latitude','$longitude'.\n";
+print "The heatmap will cover the area of $degrees degree around the antenna, which is between latitude $lat1 - $lat2 and longitude $lon1 - $lon2.\n";
 #                                 
 #===============================================================================
 # Data Header
@@ -163,25 +196,26 @@ foreach my $filename (@files) {
 	open(my $data_filehandle, '<', $filename) or die "Could not open file '$filename' $!";
 	print "Processing file '$filename'";
 	my $positions = 0;
+	my $outside_area;
 	while (my $line = <$data_filehandle>) {
 		chomp($line);
 		# split columns into array values:
 		my @col = split(/,/,$line);
-		# Remove any invalid position bigger than 600km
-		next if ($col[$hdr{'distance'}] > 600000);
+		$positions++;
 		$lat = $col[$hdr{'latitude'}];
 		$lon = $col[$hdr{'longitude'}];
 		# remove lat/lon position that are to fare away.
-		next if (($lat < $lat1) || ($lat > $lat2) || ($lon < $lon1) || ($lon > $lon2));
-		my $factor =100; # low factor means less points, high factor gives more points.
+		if (($lat < $lat1) || ($lat > $lat2) || ($lon < $lon1) || ($lon > $lon2)) {
+			$outside_area++;
+			next;
+		}
 		$lat = int(($lat - $lat1) * $factor) / $factor + $lat1;
 		$lon = int(($lon - $lon1) * $factor) / $factor + $lon1;
 		# count the number of time a lat/lon position was recorded:
 		$pos{$lat}{$lon} = 0 if (!exists $pos{$lat}{$lon} );
 		$pos{$lat}{$lon} += 1;
-		$positions++;
 	}
-	print ", '$positions' positions processed.\n";
+	print ", '$positions' positions processed. $outside_area positions were out side the specified area.\n";
 	close($data_filehandle);
 }
 # Sort positions based on the number of times they occured in the flight position data.
@@ -200,11 +234,12 @@ foreach my $sort (reverse sort keys %sort) {
 	my ($number,$lat,$lon) = split(/,/,$sort);
 	$counter++;
 	# stop after the 100000 most recorded positions:
-	last if ($counter > $max_positions);
+	last if ($counter >= $max_positions);
 	# print output to file:
 	print $output "{location: new google.maps.LatLng($lon, $lat), weight: $number},\n";
 }
 close($output);
+# print a summery of the result:
 print "Output file: $outputfile\n";
 my @cmd = `head -n 5 $outputfile`;
 print join("",@cmd);
