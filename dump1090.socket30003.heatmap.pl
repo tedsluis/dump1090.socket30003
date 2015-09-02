@@ -1,12 +1,17 @@
 #!/usr/bin/perl -w
 #
-# Ted Sluis 2015-08-20
+# Ted Sluis 2015-09-02
 # dump1090.socket30003.heatmap.pl
 #
 #===============================================================================
 # Default setting:
 my $default_datadirectory = "/tmp";
 my $outputfile ="heatmap.csv";
+my ($latitude,$longitude) = (52.085624,5.0890591); # Antenna location
+my $lat1 = $latitude  - 5; # most westerly latitude
+my $lat2 = $latitude  + 5; # most easterly latitude
+my $lon1 = $longitude - 5; # most northerly longitude
+my $lon2 = $longitude + 5; # most southerly longitude
 #
 #===============================================================================
 use strict;
@@ -40,10 +45,13 @@ my $filemask;
 my $lon;
 my $lat;
 
+
 GetOptions(
 	"help!"=>\$help,
 	"filemask=s"=>\$filemask,
 	"data=s"=>\$datadirectory,
+        "longitude=s"=>\$lon,
+        "latitude=s"=>\$lat
 ) or exit(1);
 #
 #===============================================================================
@@ -56,10 +64,18 @@ Syntax: $scriptname
 Optional parameters:
 	-data <data directory>		The data files are stored in /tmp by default.
 	-filemask <mask>		Specify a filemask. The default filemask is 'dump.socket*.txt'.
+        -lon <lonitude>                 Location of your antenna.
+        -lat <latitude>
+	-help				This help page.
+
+note: 
+	The default values can be change within the script (in the most upper section).
+
 
 Examples:
 	$scriptname 
-	$scriptname -data /home/pi\n\n";
+	$scriptname -data /home/pi
+	$scriptname -lat 52.1 -lon 4.1\n\n";
 	exit 0;
 }
 #=============================================================================== 
@@ -69,6 +85,20 @@ if (!-w $datadirectory) {
 	print "The directory does not exists or you have no write permissions in data directory '$datadirectory'!\n";
 	exit 1;
 }
+#===============================================================================
+# longitude & latitude
+$longitude = $lon if ($lon);
+if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
+	print "The specified longitude '$longitude' is invalid!\n";
+	exit 1;
+}
+$latitude = $lat if ($lat);
+if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
+	print"The specified latitude '$latitude' is invalid!\n";
+	exit 1;
+}
+print "The antenna latitude & longitude are: '$latitude','$longitude'\n";
+#                                 
 #===============================================================================
 # Data Header
 my @header = ("hex_ident","altitude","latitude","longitude","date","time","angle","distance");
@@ -92,13 +122,13 @@ my @files =`find $datadirectory -name $filemask`;
 if (@files == 0) {
 	print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
 	exit 1;
+} else {
+	print "The following files fit with the filemask '$filemask':\n";
+	foreach my $file (@files) {
+		print "  $file\n";
+	}
 }
 #===============================================================================
-my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
-my $lat1 = $latitude  - 5; # most westerly latitude
-my $lat2 = $latitude  + 5; # most easterly latitude
-my $lon1 = $longitude - 5; # most northerly longitude
-my $lon2 = $longitude + 5; # most southerly longitude
 my %pos;
 open(my $output, '>', "$datadirectory/$outputfile") or die "Could not open file '$datadirectory/outputfile' $!";
 # Read input files
@@ -106,6 +136,8 @@ foreach my $filename (@files) {
 	chomp($filename);
 	# Read data file
 	open(my $data_filehandle, '<', $filename) or die "Could not open file '$filename' $!";
+	print "Processing file $filename";
+	my $positions = 0;
 	while (my $line = <$data_filehandle>) {
 		chomp($line);
 		# split columns into array values:
@@ -122,7 +154,9 @@ foreach my $filename (@files) {
 		# count the number of time a lat/lon position was recorded:
 		$pos{$lat}{$lon} = 0 if (!exists $pos{$lat}{$lon} );
 		$pos{$lat}{$lon} += 1;
+		$positions++;
 	}
+	print ", $positions processed.\n";
 	close($data_filehandle);
 }
 my %sort;
