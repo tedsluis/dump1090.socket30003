@@ -130,7 +130,7 @@ if (@files == 0) {
 }
 #===============================================================================
 my %pos;
-open(my $output, '>', "$datadirectory/$outputfile") or die "Could not open file '$datadirectory/outputfile' $!";
+open(my $output, '>', "$datadirectory/$outputfile") or die "Could not open file '$datadirectory/$outputfile' $!";
 # Read input files
 foreach my $filename (@files) {
 	chomp($filename);
@@ -159,6 +159,7 @@ foreach my $filename (@files) {
 	print ", $positions processed.\n";
 	close($data_filehandle);
 }
+# Sort positions based on the number of times they occured in the flight position data.
 my %sort;
 foreach my $lat (keys %pos) {
 	foreach my $lon (keys %{$pos{$lat}}) {
@@ -167,16 +168,19 @@ foreach my $lat (keys %pos) {
 		$sort{"$number,$lat,$lon"} = 1;
 	}
 }
+print "Number of sorted positions: ".keys %pos."\n";
 my $counter = 0;
+# Proces the positions. Start with the positions that most occured in the flight position data.
 foreach my $sort (reverse sort keys %sort) {
 	my ($number,$lat,$lon) = split(/,/,$sort);
 	$counter++;
 	# stop after the 100000 most recorded positions:
 	last if ($counter > 100000);
-	# print output to screen:
-	print  "$counter $lat $lon   (number = $number)\n";
 	# print output to file:
 	print $output "{location: new google.maps.LatLng($lon, $lat), weight: $number},\n";
 }
 close($output);
-
+print "Output file: $datadirectory/$outputfile\n";
+my @cmd = `head -n 5 $datadirectory/$outputfile`;
+print "\n$counter position of heatmap data processed!\n\n";
+my @cmd = `tail -n 5 $datadirectory/$outputfile`;
