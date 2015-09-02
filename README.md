@@ -84,18 +84,35 @@ A333B5,10669,52.04095,3.36670,2015/09/01,22:07:56.682,-91.47,117.83
 ````
 # Help page dump1090.socket30003.heatmap.pl
 ````
-This dump1090.socket30003.heatmap.pl script can create heatmap data
+This dump1090.socket30003.heatmap.pl script can create heatmap data.
+At this moment it only creates a file with java script code, which
+must be add to the script.js manualy in order to get a heatmap layer.
+Please read this post for more info:
+http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
 Syntax: dump1090.socket30003.heatmap.pl
 
 Optional parameters:
 	-data <data directory>          The data files are stored in /tmp by default.
 	-filemask <mask>                Specify a filemask. The default filemask is 'dump.socket*.txt'.
+        -lon <lonitude>                 Location of your antenna.
+        -lat <latitude>
+	-maxpositions <max positions>   Default is 100000 positions.
+	-resolution <number>            Number of horizontal and vertical positions in output heatmap file.
+	                                Default is 1000, which means 1000x1000 positions.
+	-degrees <number>               To determine boundaries of area around the antenna.
+	                                (lat-degree -- lat+degree) x (lon-degree -- lon+degree)
+	                                De default is 3 degree.
 	-help                           This help page.
+
+note: 
+	The default values can be changed within the script (in the most upper section).
+
 
 Examples:
 	dump1090.socket30003.heatmap.pl 
 	dump1090.socket30003.heatmap.pl -data /home/pi
+	dump1090.socket30003.heatmap.pl -lat 52.1 -lon 4.1 -maxposition 50000
 ````
 # Output dump1090.socket30003.heatmap.pl
 * Default output file: /tmp/heatmap.csv
