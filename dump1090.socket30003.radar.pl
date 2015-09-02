@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-08-20
+# Ted Sluis 2015-09-02
 # Filename : dump1090.socket30003.radar.pl
 #
 #===============================================================================
@@ -131,11 +131,13 @@ if ($error > 0) {
 }
 # longitude & latitude
 $antenna_longitude = $lon if ($lon);
+$antenna_longitude =~ s/,/\./ if ($antenna_longitude);
 if ($antenna_longitude !~ /^\d+(\.\d+)?$/) {
         print "The specified longitude '$antenna_longitude' is invalid!\n";
         exit 1;
 }
 $antenna_latitude = $lat if ($lat);
+$antenna_latitude =~ s/,/\./ if ($antenna_latitude);
 if ($antenna_latitude !~ /^\d+(\.\d+)?$/) {
         print"The specified latitude '$antenna_latitude' is invalid!\n";
         exit 1;

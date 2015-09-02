@@ -254,7 +254,7 @@ if (!$result) {
 	print "Unable to connect to peer host '$PEER_HOST'!\n";
 	exit 1;
 } else {
-	print "Tring to connect to peer host '$PEER_HOST'...\n";
+	print "Trying to connect to peer host '$PEER_HOST'...\n";
 }
 # Was a time message margin specified?
 $TIME_MESSAGE_MARGIN = $time_message_margin if ($time_message_margin);
@@ -265,11 +265,13 @@ if (($TIME_MESSAGE_MARGIN < 1) || ($TIME_MESSAGE_MARGIN > 2000)) {
 }
 # longitude & latitude
 $longitude = $lon if ($lon);
+$longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print "The specified longitude '$longitude' is invalid!\n";
 	exit 1;
 }
 $latitude = $lat if ($lat);
+$latitude =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print"The specified latitude '$latitude' is invalid!\n";
 	exit 1;

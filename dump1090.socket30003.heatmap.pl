@@ -111,12 +111,6 @@ if ($degrees) {
         $degrees = 3;
 }
 my $factor = int($resolution / ($degrees * 2));
-# area around antenna
-my $lat1 = int(($latitude  - $degrees) * 1000) / 1000; # most westerly latitude
-my $lat2 = int(($latitude  + $degrees) * 1000) / 1000; # most easterly latitude
-my $lon1 = int(($longitude - $degrees) * 1000) / 1000; # most northerly longitude
-my $lon2 = int(($longitude + $degrees) * 1000) / 1000; # most southerly longitude
-print "The resolution op the heatmap will be ${resolution}x${resolution}.\n";
 #===============================================================================
 # Max positions
 if ($max_positions) {
@@ -139,15 +133,24 @@ if (!-w $datadirectory) {
 #===============================================================================
 # longitude & latitude
 $longitude = $lon if ($lon);
+$longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print "The specified longitude '$longitude' is invalid!\n";
 	exit 1;
 }
 $latitude = $lat if ($lat);
+$latitude  =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	print"The specified latitude '$latitude' is invalid!\n";
 	exit 1;
 }
+# area around antenna
+my $lat1 = int(($latitude  - $degrees) * 1000) / 1000; # most westerly latitude
+my $lat2 = int(($latitude  + $degrees) * 1000) / 1000; # most easterly latitude
+my $lon1 = int(($longitude - $degrees) * 1000) / 1000; # most northerly longitude
+my $lon2 = int(($longitude + $degrees) * 1000) / 1000; # most southerly longitude
+print "The resolution op the heatmap will be ${resolution}x${resolution}.\n";
+
 print "The antenna latitude & longitude are: '$latitude','$longitude'.\n";
 print "The heatmap will cover the area of $degrees degree around the antenna, which is between latitude $lat1 - $lat2 and longitude $lon1 - $lon2.\n";
 #                                 
