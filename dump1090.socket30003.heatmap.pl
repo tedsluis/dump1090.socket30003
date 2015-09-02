@@ -12,6 +12,7 @@ my $lat1 = $latitude  - 5; # most westerly latitude
 my $lat2 = $latitude  + 5; # most easterly latitude
 my $lon1 = $longitude - 5; # most northerly longitude
 my $lon2 = $longitude + 5; # most southerly longitude
+my $max_positions = 100000;
 #
 #===============================================================================
 use strict;
@@ -51,7 +52,8 @@ GetOptions(
 	"filemask=s"=>\$filemask,
 	"data=s"=>\$datadirectory,
         "longitude=s"=>\$lon,
-        "latitude=s"=>\$lat
+        "latitude=s"=>\$lat,
+	"maxpositions=s"=>\$max_positions,
 ) or exit(1);
 #
 #===============================================================================
@@ -66,6 +68,7 @@ Optional parameters:
 	-filemask <mask>		Specify a filemask. The default filemask is 'dump.socket*.txt'.
         -lon <lonitude>                 Location of your antenna.
         -lat <latitude>
+	-maxpositions <max positions>   Default is 100000 positions.
 	-help				This help page.
 
 note: 
@@ -75,9 +78,21 @@ note:
 Examples:
 	$scriptname 
 	$scriptname -data /home/pi
-	$scriptname -lat 52.1 -lon 4.1\n\n";
+	$scriptname -lat 52.1 -lon 4.1 -maxposition 50000\n\n";
 	exit 0;
 }
+#===============================================================================
+# Max positions
+if ($max_positions) {
+	if ($max_positions !~ /^\d{3,6}$/) {
+		print "The maximum number of positions '$max_positions' is invalid!\n";
+		print "It should be between 100 and 999999.\n";
+		exit;
+	} 
+} else {
+	$max_positions = 100000;
+}
+print "There will be no more then '$max_positions' positions in the output file.\n";
 #=============================================================================== 
 # Are the specified directories for data, log and pid file writeable?
 $datadirectory = $default_datadirectory if (!$datadirectory);
@@ -124,19 +139,29 @@ if (@files == 0) {
 	exit 1;
 } else {
 	print "The following files fit with the filemask '$filemask':\n";
+	my @tmp;
 	foreach my $file (@files) {
+		chomp($file);
+		next if ($file =~ /log$|pid$/i);
 		print "  $file\n";
+		push(@tmp,$file);
+	}
+	@files = @tmp;
+	if (@files == 0) {
+        	print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
+        	exit 1;
 	}
 }
 #===============================================================================
 my %pos;
-open(my $output, '>', "$datadirectory/$outputfile") or die "Could not open file '$datadirectory/$outputfile' $!";
+$outputfile = "$datadirectory/$outputfile";
+open(my $output, '>', "$outputfile") or die "Could not open file '$outputfile' $!";
 # Read input files
 foreach my $filename (@files) {
 	chomp($filename);
 	# Read data file
 	open(my $data_filehandle, '<', $filename) or die "Could not open file '$filename' $!";
-	print "Processing file $filename";
+	print "Processing file '$filename'";
 	my $positions = 0;
 	while (my $line = <$data_filehandle>) {
 		chomp($line);
@@ -156,7 +181,7 @@ foreach my $filename (@files) {
 		$pos{$lat}{$lon} += 1;
 		$positions++;
 	}
-	print ", $positions processed.\n";
+	print ", '$positions' positions processed.\n";
 	close($data_filehandle);
 }
 # Sort positions based on the number of times they occured in the flight position data.
@@ -168,19 +193,21 @@ foreach my $lat (keys %pos) {
 		$sort{"$number,$lat,$lon"} = 1;
 	}
 }
-print "Number of sorted positions: ".keys %pos."\n";
+print "Number of sorted positions: ".(keys %sort)."\n";
 my $counter = 0;
 # Proces the positions. Start with the positions that most occured in the flight position data.
 foreach my $sort (reverse sort keys %sort) {
 	my ($number,$lat,$lon) = split(/,/,$sort);
 	$counter++;
 	# stop after the 100000 most recorded positions:
-	last if ($counter > 100000);
+	last if ($counter > $max_positions);
 	# print output to file:
 	print $output "{location: new google.maps.LatLng($lon, $lat), weight: $number},\n";
 }
 close($output);
-print "Output file: $datadirectory/$outputfile\n";
-my @cmd = `head -n 5 $datadirectory/$outputfile`;
-print "\n$counter position of heatmap data processed!\n\n";
-my @cmd = `tail -n 5 $datadirectory/$outputfile`;
+print "Output file: $outputfile\n";
+my @cmd = `head -n 5 $outputfile`;
+print join("",@cmd);
+print "\n$counter rows with heatmap position data processed!\n\n";
+@cmd = `tail -n 5 $outputfile`;
+print join("",@cmd);
