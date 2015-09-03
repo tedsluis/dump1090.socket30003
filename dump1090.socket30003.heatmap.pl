@@ -243,7 +243,7 @@ foreach my $sort (reverse sort keys %sort) {
 	# stop after the 100000 most recorded positions:
 	last if ($counter >= $max_positions);
 	# print output to file:
-	print $output "{location: new google.maps.LatLng($lon, $lat), weight: $number},\n";
+	print $output "{location: new google.maps.LatLng($lat, $lon), weight: $number},\n";
 }
 close($output);
 # print a summery of the result:
