@@ -326,11 +326,7 @@ foreach my $sort (reverse sort keys %sort) {
 	# stop after the maximum number of heatmap positions is reached:
 	last if ($counter >= $max_positions);
 	# print output to file:
-<<<<<<< HEAD
 	print $output "{location: new google.maps.LatLng($lat, $lon), weight: $weight},\n";
-=======
-	print $output "{location: new google.maps.LatLng($lat, $lon), weight: $number},\n";
->>>>>>> 5755cc2a174a35f2730e4a5b4a735fcdf9e9633b
 }
 close($output);
 # print a summery of the result:
