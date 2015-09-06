@@ -13,6 +13,9 @@ dump1090.socket30003.radar.pl
 
 0.1 version / 2015-09-05 / Ted Sluis
 
+Read more about this at:
+http://discussions.flightaware.com/topic35844.html
+
 # Help page dump1090.socket30003.pl
 ````
 This dump1090.socket30003.pl script retrieves flight data (like lat, lon and alt) from a dump1090 
