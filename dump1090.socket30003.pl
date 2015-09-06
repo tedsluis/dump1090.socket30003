@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-01
+# Ted Sluis 2015-09-06
 # Filename : dump1090.socket30003.pl
 #
 #===============================================================================
@@ -8,9 +8,9 @@ my $PEER_HOST             = '127.0.0.1'; # The IP address or hostname of the DUM
 my $defaultdatadirectory  = "/tmp";
 my $defaultlogdirectory   = "/tmp";
 my $defaultpiddirectory   = "/tmp";
-my $defaultdistancemetric = "kilometer"; # kilometer, nauticalmile, mile, meter
-my $defaultaltitudemetric = "meter"; # meter, feet
-my $TIME_MESSAGE_MARGIN   = 10; # max acceptable margin between messages in milliseconds.
+my $defaultdistanceunit   = "kilometer"; # kilometer, nauticalmile, mile, meter
+my $defaultaltitudeunit   = "meter";     # meter, feet
+my $TIME_MESSAGE_MARGIN   = 10;          # max acceptable margin between messages in milliseconds.
 my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
 #
 #===============================================================================
@@ -122,13 +122,14 @@ my $time_message_margin;
 my $lon;
 my $lat;
 my $nopositions;
+my $debug;
 GetOptions(
 	"restart!"=>\$restart,
 	"stop!"=>\$stop,
 	"status!"=>\$status,
 	"help!"=>\$help,
-	"distancemetric=s"=>\$defaultdistancemetric,
-	"altitudemetric=s"=>\$defaultaltitudemetric,
+	"distanceunit=s"=>\$defaultdistanceunit,
+	"altitudeunit=s"=>\$defaultaltitudeunit,
 	"nopositions!"=>\$nopositions,
 	"data=s"=>\$datadirectory,
 	"log=s"=>\$logdirectory,
@@ -136,20 +137,28 @@ GetOptions(
 	"peer=s"=>\$peerhost,
 	"msgmargin=s"=>\$time_message_margin,
 	"longitude=s"=>\$lon,
-	"latitude=s"=>\$lat
+	"latitude=s"=>\$lat,
+	"debug!"=>\$debug
 ) or exit(1);
 #
 #===============================================================================
 # Check options:
 if ($help) {
 	print "
-This $scriptname script can retrieve flight data (lat, lon and alt) from a dump1090 host using port
-30003 and calcutates the distance and angle between the antenna and the plane. It will store these 
-values in a file in csv format (seperated by commas).\n
+This $scriptname script can retrieve flight data (lat, lon and alt) from a dump1090 host 
+using port 30003 and calcutates the distance and angle between the antenna and the plane. It will 
+store these values in an output file in csv format (seperated by commas).\n
 
 This script can run several times simultaneously on one host retrieving data from multiple dump1090
 instances. Each instance can use the same directories, but they all have their own data, log and 
-pid files.
+pid files. And every day the script will create a new data and log file.
+
+A data files contain column headers (with the names of the columns). Columns headers like 'altitude'
+and 'distance' also contain their unit between parentheses, for example '3520(feet)' or 
+'12,3(kilometer)'. This makes it more easy to parse the columns when using this data in other scripts. 
+Every time the script is (re)started a header wiil be written in to the data file. This way it is 
+possible to switch a unit, for example from 'meter' to 'kilometer', and other scripts will still be
+able to determine the correct unit type.
 
 The script can be lauched as a background process. It can be stopped by using the -stop parameter
 or by removing the pid file. When it not running as a background process, it can also be stopped 
@@ -160,22 +169,23 @@ Syntax: $scriptname
 
 Optional parameters:
 	-peer <peer host>		A dump1090 hostname or IP address. 
-					(De default is the localhost, 127.0.0.1)
+					De default is the localhost, 127.0.0.1
 	-restart			Restart the script.
 	-stop				Stop a running script.
 	-status				Display status.
 	-data <data directory>		The data files are stored in /tmp by default.
 	-log  <log directory>		The log file is stored in /tmp by default.
 	-pid  <pid directory>		The pid file is stored in /tmp by default.
-	-msgmargin <max message margin> The max message margin is 10ms by default.
+	-msgmargin <max message margin> The max message margin. The default is 10ms.
 	-lon <lonitude>			Location of your antenna.
 	-lat <latitude>
-	-distancematric <matric>        Type of matric: kilometer, nauticalmile, mile or meter
-	                                Default distance matric is kilometer.
-	-altitudematric <matric>	Type of matric: meter or feet.
-					Default altitude matric is meter.
-        -nopositions                    Does not display the number of position when running
+	-distanceunit <unit>            Type of unit for distance: kilometer, nauticalmile, mile or meter
+	                                Default distance unit is kilometer.
+	-altitudeunit <unit>	        Type of unit for altitude: meter or feet.
+					Default altitude unit is meter.
+        -nopositions                    Does not display the number of position while running
                                         interactive (launched from commandline).
+	-debug                          Display raw socket messages.
 	-help				This help page.
 
 Notes: 
@@ -188,33 +198,35 @@ Notes:
 Examples:
 	$scriptname 
 	$scriptname -log /var/log -data /home/pi -pid /var/run -restart &
-	$scriptname -peer 192.168.1.10 -stop\n
+	$scriptname -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
+	$scriptname -peer 192.168.1.10 -stop
+
 Pay attention: to stop an instance: Don't forget to specify the same peer host.\n\n";
 	exit;
 }
-# defaultdestinationmetric
-if ($defaultdistancemetric) {
-	if ($defaultdistancemetric =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
-		$defaultdistancemetric = lc($defaultdistancemetric);
+# defaultdestinationunit
+if ($defaultdistanceunit) {
+	if ($defaultdistanceunit =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
+		$defaultdistanceunit = lc($defaultdistanceunit);
 	} else {
-		print "The default distance metric '$defaultdistancemetric' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
+		print "The default distance unit '$defaultdistanceunit' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
 		exit 1;
 	}
 } else { 
-	$defaultdistancemetric = "kilometer";
+	$defaultdistanceunit = "kilometer";
 } 
-# defaultaltitudemetric
-if ($defaultaltitudemetric) {
-	if ($defaultaltitudemetric =~ /^meter$|^feet$/i) {
-		$defaultaltitudemetric = lc($defaultaltitudemetric);
+# defaultaltitudeunit
+if ($defaultaltitudeunit) {
+	if ($defaultaltitudeunit =~ /^meter$|^feet$/i) {
+		$defaultaltitudeunit = lc($defaultaltitudeunit);
 	} else {
-		print "The default altitude metric '$defaultaltitudemetric' is invalid! It should be one of these: meter or feet.\n";
+		print "The default altitude unit '$defaultaltitudeunit' is invalid! It should be one of these: meter or feet.\n";
 		exit 1;
 	}
 } else { 
-	$defaultaltitudemetric = "meter";
+	$defaultaltitudeunit = "meter";
 }
-print "Using '$defaultdistancemetric' the distance and '$defaultaltitudemetric' for the altitude.\n";
+print "Using the unit '$defaultdistanceunit' for the distance and '$defaultaltitudeunit' for the altitude.\n";
 #
 # Compose filedate
 sub filedate(@) {
@@ -286,6 +298,11 @@ do {
   	$SOCKET = new IO::Socket::INET( PeerAddr => $PEER_HOST,
  		                        PeerPort => '30003',
                                         Proto    => 'tcp');
+	if ($@) {
+		print "Error trying to connect to '$PEER_HOST', port 30003 (tcp): '$@'.\n";
+	} else {
+		print "Connected to '$PEER_HOST', port 30003 (tcp).\n";
+	}
 } while (!$SOCKET);
 #
 #===============================================================================
@@ -341,12 +358,12 @@ sub distance(@) {
     	my $theta = $lon1 - $lon2;
     	my $dist = rad2deg(acos(sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta))));
 	my $distance;
-	# calculate the required metric:
-	if ($defaultdistancemetric =~ /^mile$/) {
+	# calculate the distance using the required unit:
+	if ($defaultdistanceunit =~ /^mile$/) {
   		$distance = int($dist * 69.09 * 100) / 100;        # mile
-	} elsif ($defaultdistancemetric =~ /^meter$/) {
+	} elsif ($defaultdistanceunit =~ /^meter$/) {
    		$distance = int($dist * 111189.57696);             # meter
-	} elsif ($defaultdistancemetric =~ /^nauticalmile$/) {
+	} elsif ($defaultdistanceunit =~ /^nauticalmile$/) {
     		$distance = int($dist * 59.997756 * 100) / 100;    # nautical mile
 	} else {
    		$distance = int($dist * 111.18957696 * 100) / 100; # kilometer
@@ -486,11 +503,30 @@ foreach my $header (@header) {
 }
 #
 # Read messages from the 30003 socket in a continuous loop:
+my $errorcount = 0;
 while ($message = <$SOCKET>){
 	$message_count++;
   	chomp($message);
+	if ($debug) {
+		if ($message) {
+			print " messagecount=$message_count,message='$message'\n";	
+		} else {
+			print " messagecount=$message_count,message=''\n";
+		}
+	}
 	# Split line into colomns:
 	my @col = split /,/,$message;
+	if (@col > 20) {
+		$errorcount = 0;
+	} else {
+		$errorcount++;
+		if ($errorcount > 100) {
+			print " messagecount=$message_count,last message='$message'\n";
+			print "Not able to read data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).\n";
+			exit;
+		}
+		next;
+	}
 	my $hex_ident = $col[$hdr{'hex_ident'}];
 	# Skip if no hex_identifier:
 	next if ($hex_ident =~ /^\s*$/);
@@ -535,6 +571,8 @@ while ($message = <$SOCKET>){
     		open($log_filehandle,  '>>',"$logdirectory/$filedate.log")  or die "Unable to open '$logdirectory/$filedate.txt'!\n";
     		$data_filehandle->autoflush;
     		$log_filehandle->autoflush;
+		# write header: 
+	        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit)\n";
 		# reset counters for a new day:
 		$message_count = 1;
 		$position_count = keys %{$flight{$hex_ident}};
@@ -585,7 +623,7 @@ while ($message = <$SOCKET>){
 	# Save Altitude and datetime
 	if ($col[$hdr{'altitude'}] =~ /[123456789]/) {
 		my $altitude = $col[$hdr{'altitude'}];
-		if ($defaultaltitudemetric =~ /^meter$/) {
+		if ($defaultaltitudeunit =~ /^meter$/) {
 			# save feet as meters:
 			$flight{$hex_ident}{'altitude'} = int($altitude / 3.2828);
 		} else {
