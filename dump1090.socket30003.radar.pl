@@ -1,14 +1,16 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-02
+# Ted Sluis 2015-09-06
 # Filename : dump1090.socket30003.radar.pl
 #
 #===============================================================================
 # Default setting:
-my $default_max_altitude = 48000;
-my $default_min_altitude = "0";
-my $default_number_of_directions = 1440;
-my $default_number_of_altitudezones = 16;
-my $default_datadirectory = "/tmp";
+my $default_max_altitude            = 15000; # specified in the output unit (use 45000 for feet and 15000 for meter)
+my $default_min_altitude            = "0";   # specified in the output unit
+my $default_number_of_directions    = 1440;  # 
+my $default_number_of_altitudezones = 15;
+my $default_datadirectory           = "/tmp";
+my $defaultdistanceunit             = "kilometer,kilometer"; # specify input & output unit! kilometer, nauticalmile, mile or meter
+my $defaultaltitudeunit             = "meter,meter";         # specify input & output unit! meter or feet
 my ($antenna_latitude,$antenna_longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
 #
 #===============================================================================
@@ -54,37 +56,166 @@ GetOptions(
 	"data=s"=>\$datadirectory,
         "longitude=s"=>\$lon,
         "latitude=s"=>\$lat,
+        "distanceunit=s"=>\$defaultdistanceunit,
+        "altitudeunit=s"=>\$defaultaltitudeunit,
 	"max=s"=>\$max_altitude,
 	"min=s"=>\$min_altitude,
 	"directions=s"=>\$number_of_directions,
 	"zones=s"=>\$number_of_altitudezones
 ) or exit(1);
+#=============================================================================== 
+my %fileunit;
+# defaultdistanceunit
+my %distanceunit;
+my $error = 0;
+if ($defaultdistanceunit) {
+	my @defaultdistanceunit = split(/,/,$defaultdistanceunit);
+	if ($defaultdistanceunit[0] =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
+		$distanceunit{'in'} = lc($defaultdistanceunit[0]);
+		if (defined $defaultdistanceunit[1]) {
+			if ($defaultdistanceunit[1] =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
+				$distanceunit{'out'} = lc($defaultdistanceunit[1]);
+			} else {
+				$error++;
+			}
+		} else {
+			$distanceunit{'out'} = lc($defaultdistanceunit[0]);
+		}
+	} else {
+		$error++;
+	}
+} else {
+	$distanceunit{'in'}  = "kilometer";
+	$distanceunit{'out'} = "kilometer";
+}
+if ($error) {
+        print "The default distance unit '$defaultdistanceunit' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
+        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the radar view output file.\n";
+        print "for example: '-distanceunit kilometer' or '-distanceunit kilometer,nauticalmile'\n";
+        exit 1;
+}
+# defaultaltitudeunit
+my %altitudeunit;
+$error = 0;
+if ($defaultaltitudeunit) {
+	my @defaultaltitudeunit = split(/,/,$defaultaltitudeunit);
+	if ($defaultaltitudeunit[0] =~ /^meter$|^feet$/i) {
+		$altitudeunit{'in'} = lc($defaultaltitudeunit[0]);
+		if (defined $defaultaltitudeunit[1]) {
+			if ($defaultaltitudeunit[1] =~ /^meter$|^feet$/i) {
+				$altitudeunit{'out'} = lc($defaultaltitudeunit[1]);
+			} else {
+                		$error++;
+			}
+		} else {
+			$altitudeunit{'out'} = lc($defaultaltitudeunit[0]);
+		}
+	} else {
+		$error++;
+	}
+} else {
+	$altitudeunit{'in'}  = "meter";
+	$altitudeunit{'out'} = "meter";
+}
+if ($error) {
+        print "The default altitude unit '$defaultaltitudeunit' is invalid! It should be one of these: meter or feet.\n";
+        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the radar view output file.\n";
+        print "for example: '-distanceunit meter' or '-distanceunit feet,meter'\n";
+        exit 1; 
+}
 #
 #===============================================================================
 # Check options:
 if ($help) {
-	print "\nThis $scriptname script can sort flight data (lat, lon and alt).
+	print "\nThis $scriptname script create location data for a radar view.
+At this moment this script only creates a file with track that can be imported in to coogle maps.
+Please read this post for more info:
+http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
+
+This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
+use the correct units for 'altitude' and 'distance' when the input files contain column headers 
+with the unit type between parentheses. When the input files doesn't contain column headers (as 
+produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
+Otherwise this script will use the default units.
+
+The flight position data is sorted in to altitude zones. For each zone and for each direction the
+most remote location is saved. The most remote locations per altitude zone will be written to a file as a track. 
 
 Syntax: $scriptname
 
 Optional parameters:
-	-data <data directory>		The data files are stored in /tmp by default.
-	-filemask <mask>		Specify a filemask. The default filemask is 'dump.socket*.txt'.
-	-max <altitude>			Upper limit. Default is 48000. Higher values in the input data will be skipped.
-	-min <altitude>			Lower limit. Default is 0. Lower values in the input data will be skipped.
-	-directions <number>		Number of compass direction (pie slices). Minimal 8, maximal 7200. Default = 360.
-	-zones <number>			Number of altitude zones. Minimal 1, maximum 99. Default = 16.
-        -lon <lonitude>                 Location of your antenna.
+	-data <data directory>		    The data files are stored in /tmp by default.
+	-filemask <mask>		    Specify a filemask. The default filemask is 'dump.socket*.txt'.
+	-max <altitude>			    Upper limit. Default is '$default_max_altitude $altitudeunit{'out'}'. 
+	                                    Higher values in the input data will be skipped.
+	-min <altitude>			    Lower limit. Default is '$default_min_altitude $altitudeunit{'out'}'. 
+	                                    Lower values in the input data will be skipped.
+	-directions <number>		    Number of compass direction (pie slices). Minimal 8, maximal 7200. Default = 360.
+	-zones <number>			    Number of altitude zones. Minimal 1, maximum 99. Default = 16.
+        -lon <lonitude>                     Location of your antenna.
         -lat <latitude>                 
-
+        -distanceunit <unit>[,<unit>]       Type of unit: kilometer, nauticalmile, mile or meter.
+	                                    First unit is for the incoming source, the file(s) with flight positions.
+                                            The second unit is for the output file. No unit means it is the same as incoming.
+                                            Default distance unit's are: '$defaultdistanceunit'.
+        -altitudeunit <unit>[,<unit>]       Type of unit: feet or meter.
+                                            First unit is for the incoming source, the file(s) with flight positions.
+                                            The second unit is for the output file. No unit means it is the same as incoming.
+                                            Default altitude unit's are: '$defaultaltitudeunit'.
 Notes: 
-- To launch it as a background process, add '&'.
-- The default values can be change within the script (in the most upper section).
+	- The default values can be change within the script (in the most upper section).
+	- The source units will be overruled in case the input file header contains unit information.
 
 Examples:
 	$scriptname 
+	$scriptname -distanceunit kilometer,nauticalmile -altitudeunit meter,feet
 	$scriptname -data /home/pi\n\n";
 	exit 0;
+}
+#=============================================================================== 
+print "The altitude will be converted from '$altitudeunit{'in'}' to '$altitudeunit{'out'}'.\n";
+print "The distance will be converted from '$distanceunit{'in'}' to '$distanceunit{'out'}.\n";
+my %convertalt;
+my %convertdis;
+#===============================================================================
+# Set unit for altitude and distance
+sub setunits(@) {
+	# altitude unit:
+	$convertalt{'in'}  = 1              if ($altitudeunit{'in'}  eq "meter");
+	$convertalt{'out'} = 1              if ($altitudeunit{'out'} eq "meter");
+	$convertalt{'in'}  = 0.3048         if ($altitudeunit{'in'}  eq "feet");
+	$convertalt{'out'} = 3.2808399      if ($altitudeunit{'out'} eq "feet");
+	# altitude unit is overruled in case the input file header contains unit information:
+	$convertalt{'in'}  = 1              if ((exists $fileunit{'altitude'}) && ($fileunit{'altitude'} eq "meter"));
+	$convertalt{'in'}  = 0.3048	    if ((exists $fileunit{'altitude'}) && ($fileunit{'altitude'} eq "feet"));
+	# distance
+	$convertdis{'in'}  = 1              if ($distanceunit{'in'}  eq "meter");
+	$convertdis{'out'} = 1              if ($distanceunit{'out'} eq "meter");
+	$convertdis{'in'}  = 1609.344       if ($distanceunit{'in'}  eq "mile");
+	$convertdis{'out'} = 0.000621371192 if ($distanceunit{'out'} eq "mile");
+	$convertdis{'in'}  = 1852           if ($distanceunit{'in'}  eq "nauticalmile");
+	$convertdis{'out'} = 0.000539956803 if ($distanceunit{'out'} eq "nauticalmile");
+	$convertdis{'in'}  = 1000           if ($distanceunit{'in'}  eq "kilometer");
+	$convertdis{'out'} = 0.001          if ($distanceunit{'out'} eq "kilometer");
+	# distance unit is overruled in case the input file header contains unit information:
+	$convertdis{'in'}  = 1              if ((exists $fileunit{'distance'}) && ($fileunit{'distance'} eq "meter"));
+	$convertdis{'in'}  = 1609.344       if ((exists $fileunit{'distance'}) && ($fileunit{'distance'} eq "mile"));
+	$convertdis{'in'}  = 1852           if ((exists $fileunit{'distance'}) && ($fileunit{'distance'} eq "nauticalmile"));
+	$convertdis{'in'}  = 1000           if ((exists $fileunit{'distance'}) && ($fileunit{'distance'} eq "kilometer"));
+}
+setunits;
+# convert altitude to the correct unit:
+sub alt(@) {
+	my $altitude  = shift;
+	my $altitude_in_meters = $convertalt{'in'}  * $altitude;
+	my $result =         int($convertalt{'out'} * $altitude_in_meters);
+	return $result;
+}
+# convert distance to the correct unit:
+sub dis(@) {
+	my $distance = shift;
+	my $distance_in_meters = $convertdis{'in'}  * $distance;
+	my $result =         int($convertdis{'out'} * $distance_in_meters);
 }
 #=============================================================================== 
 # Are the specified directories for data, log and pid file writeable?
@@ -102,18 +233,18 @@ $max_altitude = $default_max_altitude if (!$max_altitude);
 $min_altitude = $default_min_altitude if (!$min_altitude);
 $number_of_directions = $default_number_of_directions if (!$number_of_directions);
 $number_of_altitudezones = $default_number_of_altitudezones if (!$number_of_altitudezones);
-my $error=0;
-if ((($max) && ($max !~ /^\d+$/)) || ($max_altitude > 100000) || ($max_altitude <= $min_altitude)) {
-	print "The maxium altitude ($max_altitude feet) is not valid! It should be at least as high as the minium altitude ($min_altitude feet), but not higher than 100.000 feet!\n";
+$error=0;
+if ((($max) && ($max !~ /^\d+$/)) || ($max_altitude > (20000 * $convertalt{'out'})) || ($max_altitude <= $min_altitude)) {
+	print "The maxium altitude ($max_altitude $altitudeunit{'out'}) is not valid! It should be at least as high as the minium altitude ($min_altitude $altitudeunit{'out'}), but not higher than ".(20000 * $convertalt{'out'})." $altitudeunit{'out'}!\n";
 	$error++;
 } else {
-	print "The maxium altitude is $max_altitude feet.\n";
+	print "The maxium altitude is $max_altitude $altitudeunit{'out'}.\n";
 }
 if ((($min) && ($min !~ /^\d+$/)) || ($min_altitude < 0) || ($min_altitude >= $max_altitude)) {
-	print "The minium altitude ($min_altitude feet) is not valid! It should be less than the maximum altitude ($max_altitude feet), but not less than 0 feet!\n";
+	print "The minium altitude ($min_altitude $altitudeunit{'out'}) is not valid! It should be less than the maximum altitude ($max_altitude $altitudeunit{'out'}), but not less than 0 $altitudeunit{'out'}!\n";
 	$error++;
 } else {
- 	print "The minimal altitude is $min_altitude feet.\n";
+ 	print "The minimal altitude is $min_altitude $altitudeunit{'out'}.\n";
 }
 if ((($directions) && ($directions !~ /^\d+$/)) || ($number_of_directions < 8) || ($number_of_directions > 7200)) {
 	print "The number of compass directions ($number_of_directions) is invalid! It should be at least 8 and less then 7200.\n";
@@ -142,27 +273,18 @@ if ($antenna_latitude !~ /^[-+]?\d+(\.\d+)?$/) {
         print"The specified latitude '$antenna_latitude' is invalid!\n";
         exit 1;
 }
+print "The latitude/longitude location of the antenna is: $antenna_latitude,$antenna_longitude.\n";
 #
 #===============================================================================
-my $diff_altitude = $max_altitude - $min_altitude;
+my $diff_altitude  = $max_altitude - $min_altitude;
 my $zone_altitude  = int($diff_altitude / $number_of_altitudezones);
-print "An altitude zone is $zone_altitude feet.\n";
-#
-#===============================================================================
-# Data Header
-my @header = ("hex_ident","altitude","latitude","longitude","date","time","angle","distance");
-my %hdr;
-my $columnnumber = 0;
-# Save colum name with colomn number in hash.
-foreach my $header (@header) {
-        $hdr{$header} = $columnnumber;
-        $columnnumber++;
-}
+print "An altitude zone is $zone_altitude $altitudeunit{'out'}.\n";
+
 #===============================================================================
 my %data;
 # Set default filemask
 if (!$filemask) {
-	$filemask = "dump.socket*.txt" ;
+	$filemask = "dump*.txt" ;
 } else {
 	$filemask ="*$filemask*";
 }
@@ -171,66 +293,125 @@ my @files =`find $datadirectory -name $filemask`;
 if (@files == 0) {
 	print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
 	exit 1;
+} else {
+        print "The following files fit with the filemask '$filemask':\n";
+        my @tmp;
+        foreach my $file (@files) {
+                chomp($file);
+                next if ($file =~ /log$|pid$/i);
+                print "  $file\n";
+                push(@tmp,$file);
+        }
+        @files = @tmp;
+        if (@files == 0) {
+                print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
+                exit 1;
+        }
 }
 #===============================================================================
 my $filecounter=0;
 my $positioncounter=0;
 my %positionperzonecounter;
 my %positionperdirectioncounter;
+my $position;
 # Read input files
 foreach my $filename (@files) {
-	my $positionsperfilecount=0;
+	print "processing '$filename':\n";
 	$filecounter++;
 	chomp($filename);
 	# Read data file
 	open(my $data_filehandle, '<', $filename) or die "Could not open file '$filename' $!";
+	my $linecounter = 0;
+	my @header; 
+	my %hdr;
 	while (my $line = <$data_filehandle>) {
 		chomp($line);
+		$linecounter++;
+		# Data Header
+		# First line? 
+		if (($linecounter == 1) || ($line =~ /hex_ident/)){
+			print "- ".($linecounter-1)." processed.\n" if ($linecounter != 1);
+			# Reset fileunit:
+			%fileunit =();
+			# Does it contain header columns?
+			if ($line =~ /hex_ident/) {
+				@header = ();
+				my @unit;
+				# Header columns found!
+				my @tmp = split(/,/,$line);
+				foreach my $column (@tmp) {
+					if ($column =~ /^\s*([^\(]+)\(([^\)]+)\)\s*$/) {
+						# The column name includes a unit, for example: altitude(meter)
+						push(@header,$1);
+						$fileunit{$1} = $2;
+						push(@unit,"$1=$2");
+					} else {
+						push(@header,$column);
+					}
+				}
+				print "  -header units:".join(",",@unit).", position $linecounter";
+			} else {
+				# No header columns found. Use default!
+				@header = ("hex_ident","altitude","latitude","longitude","date","time","angle","distance");
+				print "  -default units:altitude=$altitudeunit{'in'},distance=$distanceunit{'in'}, position $linecounter";
+			}
+			# The file header unit information may be changed: set the units again.
+			setunits;
+			my $columnnumber = 0;
+			# Save column name with colomn number in hash.
+			foreach my $header (@header) {
+			        $hdr{$header} = $columnnumber;
+		        	$columnnumber++;
+			}
+			next if ($line =~ /hex_ident/);
+		}
+		# split line in to columns.
 		my @col = split(/,/,$line);
+		$position++;
+		my $altitude = alt($col[$hdr{'altitude'}]);
+		my $distance = dis($col[$hdr{'distance'}]);
 		# Remove any invalid position bigger than 600km
-		next if ($col[$hdr{'distance'}] > 600000);
+		next if ($distance > (600000 * $convertdis{'out'}));
 		# Skip if the altitude is out of range....
-		next if (($col[$hdr{'altitude'}] < $min_altitude) || ($col[$hdr{'altitude'}] >= $max_altitude)); 
-		# Display progress:
-		my $back = length $positioncounter;
-    		print $positionsperfilecount, substr "\b\b\b\b\b\b\b\b\b\b", 0, $back;
+		next if (($altitude < $min_altitude) || ($altitude >= $max_altitude)); 
 		# Calculate the altitude zone and direction zone
-		my $altitude_zone  = sprintf("% 5d",int($col[$hdr{'altitude'}] / $zone_altitude ) * $zone_altitude);
-		my $direction_zone = sprintf("% 4d",int($col[$hdr{'angle'}] * ($number_of_directions / 360)) / ($number_of_directions / 360));
+		my $altitude_zone  = sprintf("% 5d",int($altitude / $zone_altitude ) * $zone_altitude);
+		#my $direction_zone = sprintf("% 4d",int($col[$hdr{'angle'}] * ($number_of_directions / 360)) / ($number_of_directions / 360));
+		my $direction_zone = sprintf("% 4d",int($col[$hdr{'angle'}] / 360 * $number_of_directions));
 
 		# Update the counters for statictics
 		$positioncounter++;
-		$positionsperfilecount++;
 		$positionperzonecounter{$altitude_zone} = 0 if (!exists $positionperzonecounter{$altitude_zone});
 		$positionperzonecounter{$altitude_zone}++;
 		$positionperdirectioncounter{$altitude_zone}{$direction_zone} = 0 if (! exists $positionperdirectioncounter{$altitude_zone}{$direction_zone});
 		$positionperdirectioncounter{$altitude_zone}{$direction_zone}++;
 		# Save position if it is the most fare away location for it's altitude zone and direction zoe:
 		if ((!exists $data{$altitude_zone}||(!exists $data{$altitude_zone}{$direction_zone})||($data{$altitude_zone}{$direction_zone}{'distance'} < $col[$hdr{'distance'}]))) {
-			$data{$altitude_zone}{$direction_zone}{'distance'}   = $col[$hdr{'distance'}];
+			$data{$altitude_zone}{$direction_zone}{'distance'}   = int($distance * 100) / 100;
                         $data{$altitude_zone}{$direction_zone}{'hex_ident'}  = $col[$hdr{'hex_ident'}];
-                        $data{$altitude_zone}{$direction_zone}{'altitude'}   = $col[$hdr{'altitude'}];
+                        $data{$altitude_zone}{$direction_zone}{'altitude'}   = int($altitude);
                         $data{$altitude_zone}{$direction_zone}{'latitude'}   = $col[$hdr{'latitude'}];
                         $data{$altitude_zone}{$direction_zone}{'longitude'}  = $col[$hdr{'longitude'}];
                         $data{$altitude_zone}{$direction_zone}{'date'}       = $col[$hdr{'date'}];
                         $data{$altitude_zone}{$direction_zone}{'time'}       = $col[$hdr{'time'}];
-                        $data{$altitude_zone}{$direction_zone}{'angle'}      = $col[$hdr{'angle'}];
+                        $data{$altitude_zone}{$direction_zone}{'angle'}      = int($col[$hdr{'angle'}] * 100) / 100;
 
 		}
 	}
 	close($data_filehandle);
+	print "-".($linecounter-1).". processed.\n";
 }
 print "\nNumber of files read: $filecounter\n";
-print "Number of position processed: $positioncounter\n";
+print "Number of position processed: $position and positions within range processed: $positioncounter\n";
 #===============================================================================
 my @color = ("blue","yellow","red","green","violet","orange","cyan","magenta");
 my $data_filehandle;
 my $trackpoint=0;
 my $track=0;
 my $newtrack;
-print "datafile=$datadirectory/graph1.csv\n";
+print "datafile=$datadirectory/radar.csv\n";
 open($data_filehandle, '>',"$datadirectory/radar.csv") or die "Unable to open '$datadirectory/radar.csv'!\n";
-print $data_filehandle "type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude,latitude,longitude,date,time,angle,distance\n";
+print $data_filehandle "type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude($altitudeunit{'out'}),latitude,longitude,date,time,angle,distance($distanceunit{'out'})\n";
 foreach my $altitude_zone (sort {$a<=>$b} keys %data) {
 	$track++;
 	my $alt_zone_name = sprintf("%05d-%5d",$altitude_zone,($altitude_zone + $zone_altitude));
@@ -241,7 +422,7 @@ foreach my $altitude_zone (sort {$a<=>$b} keys %data) {
 	my $max_positions_per_direction =0;
 	foreach my $direction_zone (sort {$a<=>$b} keys %{$data{$altitude_zone}}) {
 		my @row;
-		foreach my $header (@header) {
+		foreach my $header ("hex_ident","altitude","latitude","longitude","date","time","angle","distance") {
 			push(@row,$data{$altitude_zone}{$direction_zone}{$header});
 		}
 		$trackpoint++;
@@ -258,47 +439,7 @@ foreach my $altitude_zone (sort {$a<=>$b} keys %data) {
 	my $real_number_of_directions = scalar keys %{$positionperdirectioncounter{$altitude_zone}};
 	my $avarage_positions_per_direction = sprintf("% 6d",($positionperzonecounter{$altitude_zone} / $number_of_directions));
 	my $avarage_positions_per_real_direction =sprintf("% 6d",($positionperzonecounter{$altitude_zone} / $real_number_of_directions));
-	my $line = sprintf("% 3d,Altitude zone:% 6d-% 6d,Directions:% 5d/% 5d,Positions processed:% 7d,Positions processed per direction: min:% 6d,max:% 6d,avg:% 6d,real avg:% 6d",$tracknumber,$altitude_zone,($altitude_zone + $zone_altitude-1),$real_number_of_directions,$number_of_directions,$positionperzonecounter{$altitude_zone},$min_positions_per_direction,$max_positions_per_direction,$avarage_positions_per_direction,$avarage_positions_per_real_direction);
+	my $line = sprintf("% 3d,Altitude zone:% 6d-% 6d,Directions:% 5d/% 5d,Positions processed:% 10d,Positions processed per direction: min:% 6d,max:% 6d,avg:% 6d,real avg:% 6d",$tracknumber,$altitude_zone,($altitude_zone + $zone_altitude-1),($real_number_of_directions+1),$number_of_directions,$positionperzonecounter{$altitude_zone},$min_positions_per_direction,$max_positions_per_direction,$avarage_positions_per_direction,$avarage_positions_per_real_direction);
 	print $line."\n";
 }
 
-#===========================================================================
-my $pi = atan2(1,1) * 4;
-#
-sub Asin (@) { 
-	my $value1 = shift;
-	my $value2 = (1 - $value1 * $value1);
-	my $value3 = sqrt($value2);
-	my $result = atan2($value1, $value3);
-	print "value1=$value1, value2=$value2, value3=$value3, result=$result\n";
-	return $result;
-}
-sub mod (@) {
-	my $val1 = shift;
-	my $val2 = shift;
-	my $result = $val1 - $val2 * int($val1/$val2);
-    	if ( $result < 0) {
-		$result = $result + $val2;
-	}
-	return $result;
-}
-__END__
-# lat =asin(sin(lat1)*cos(d)+cos(lat1)*sin(d)*cos(tc))
-# dlon=atan2(sin(tc)*sin(d)*cos(lat1),cos(d)-sin(lat1)*sin(lat))
-# lon=mod( lon1-dlon +pi,2*pi )-pi
-#foreach my $diameter (50000,100000,150000,200000,250000,300000,350000,400000,450000,500000) {
-foreach my $diameter (4500000,9000000,1800000) {
-	$newtrack = 1;
-	foreach my $direction_count (0..2880) {
-		my $direction = $direction_count / 8;
-		my $tc = $direction * $pi / 180;
-		my $lat =Asin(sin($antenna_latitude) * cos($diameter) + cos($antenna_latitude) * sin($diameter) * cos($tc));
-		my $dlon=atan2(sin($tc) * sin($diameter) * cos($antenna_latitude),cos($diameter) - sin($antenna_latitude) * sin($antenna_latitude));
- 		my $lon=mod($antenna_longitude - $dlon + $pi,2 * $pi );# - $pi;
-		$lat = $lat + $antenna_latitude;
-		$trackpoint++;
-		# T,0,Altitude zone 14: 39000-42000,cyan,2215, 39000, 176,72866B,39000,50.67630,5.18982,2015/04/09,23:51:36.155,176.070970267002,156858.033354566
-		print $data_filehandle "T,$newtrack,Diameter $diameter,magenta,$trackpoint,,,,,$lat,$lon,-,-,$direction,$diameter\n";
-		$newtrack = 0;
-	}
-}
