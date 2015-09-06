@@ -1,27 +1,36 @@
 # dump1090.socket30003
 
 dump1090.socket30003.pl
-* Collects dump1090 flight positions using socket30003 and save them in csv format.
+* Collects dump1090 flight positions (ADB-S format) using socket 30003 and save them in csv format.
 dump1090.socket30003.heatmap.pl
-* Reads the flight positions from files in csv format and creates point for a heatmap.
+* Reads the flight positions from files in csv format and creates points for a heatmap.
+* The heatmap shows where planes come very often. It makes common routes visable.
 dump1090.socket30003.radar.pl
-* Reads the flight positions from files in csv format and creates a radar map.
+* Reads the flight positions from files in csv format and creates a radar view map. 
+* The radar view shows the maximum range of your antenna for every altitude zone.
 
-0.1 version / 2015-09-01 / Ted Sluis
+0.1 version / 2015-09-05 / Ted Sluis
 
 # Help page dump1090.socket30003.pl
 ````
-This dump1090.socket30003.pl script can retrieve flight data (lat, lon and alt) from a dump1090 host using port
-30003 and calcutates the distance and angle between the antenna and the plane. It will store these 
-values in a file in csv format (seperated by commas).
+This dump1090.socket30003.pl script retrieves flight data (like lat, lon and alt) from a dump1090 
+host using port 30003 and calcutates the distance and angle between the antenna and the plane. It 
+will store these values in an output file in csv format (seperated by commas).
 
 
 This script can run several times simultaneously on one host retrieving data from multiple dump1090
 instances. Each instance can use the same directories, but they all have their own data, log and 
-pid files.
+pid files. And every day the script will create a new data and log file.
+
+A data files contain column headers (with the names of the columns). Columns headers like 'altitude'
+and 'distance' also contain their unit between parentheses, for example '3520(feet)' or 
+'12,3(kilometer)'. This makes it more easy to parse the columns when using this data in other scripts. 
+Every time the script is (re)started a header wiil be written in to the data file. This way it is 
+possible to switch a unit, for example from 'meter' to 'kilometer', and other scripts will still be
+able to determine the correct unit type.
 
 The script can be lauched as a background process. It can be stopped by using the -stop parameter
-or by removing the pid file. When running from commandline it can also be stopped 
+or by removing the pid file. When it not running as a background process, it can also be stopped 
 by pressing CTRL-C. The script will write the current data and log entries to the filesystem 
 before exiting...
 
@@ -36,13 +45,13 @@ Optional parameters:
 	-data <data directory>          The data files are stored in /tmp by default.
 	-log  <log directory>           The log file is stored in /tmp by default.
 	-pid  <pid directory>           The pid file is stored in /tmp by default.
-	-msgmargin <max message margin> The max message margin is 10ms by default.
+	-msgmargin <max message margin> The max message margin. The default is 10ms.
 	-lon <lonitude>                 Location of your antenna.
 	-lat <latitude>			
-	-distancematric <matric>        Type of matric: kilometer, nauticalmile, mile or meter
-	                                Default distance matric is kilometer.
-	-altitudematric <matric>        Type of matric: meter or feet.
-	                                Default altitude matric is meter.
+	-distanceunit <unit>            Type of unit: kilometer, nauticalmile, mile or meter
+	                                Default distance unit is kilometer.
+	-altitudeunit <unit>            Type of unit: meter or feet.
+	                                Default altitude unit is meter.
 	-nopositions                    Does not display the number of position when running
 	                                interactive (launched from commandline).
 	-help                           This help page.
@@ -56,7 +65,7 @@ Notes:
 
 Examples:
 	dump1090.socket30003.pl 
-	dump1090.socket30003.pl -peer 192.168.1.10 -nopositions -distancematric nauticalmile -altitudematric feet &
+	dump1090.socket30003.pl -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
 	dump1090.socket30003.pl -log /var/log -data /home/pi -pid /var/run -restart 
 	dump1090.socket30003.pl -peer 192.168.1.10 -stop
 
@@ -65,31 +74,48 @@ Pay attention: when stopping an instance: Don't forget to specify correct the pe
 # Output dump1090.socket30003.pl
 * Default outputfile: /tmp/dump1090.socket30003.pl-192_168_11_34-150830.txt (dump1090.socket30003.pl-<IP-ADDRESS-PEER>-<date>.txt)
 ````
-header: hex_ident,altitude,latitude,longitude,date,time,direction,distance
-data:
-3950C5,11880,52.64197,6.73431,2015/09/01,22:07:56.555,70.48,127.68
-343695,807,52.25015,5.05760,2015/09/01,22:07:56.573,-10.38,18.41
-406BBB,11057,50.92037,3.85033,2015/09/01,22:07:56.620,-134.38,155.35
-400EFC,3670,52.61050,4.48329,2015/09/01,22:07:56.635,-47.84,71.4
-8990DD,8224,52.04086,6.79138,2015/09/01,22:07:56.673,91.49,116.47
-A333B5,10669,52.04095,3.36670,2015/09/01,22:07:56.682,-91.47,117.83
-3C6446,11567,51.60269,5.99185,2015/09/01,22:07:56.683,119.11,82.03
-4CA355,11880,53.39719,4.48832,2015/09/01,22:07:56.689,-23.65,151.33
-3C6605,11270,50.72575,4.55933,2015/09/01,22:07:56.691,-159.48,155.6
-71BF21,4363,52.71680,5.26703,2015/09/01,22:07:56.698,15.1,71.21
-4CA212,5909,51.19363,3.38015,2015/09/01,22:07:56.700,-118.47,154.07
-4CA257,11270,50.63464,5.00360,2015/09/01,22:07:56.719,-176.76,161.44
-471F5F,11811,52.38455,3.05183,2015/09/01,22:07:56.729,-81.2,142.64
-4CA27F,10966,52.59970,3.66833,2015/09/01,22:07:56.746,-69.24,112.16
+hex_ident,altitude(meter),latitude,longitude,date,time,angle,distance(kilometer)
+4CA766,11575,51.67790,2.85407,2015/09/05,08:30:23.010,-100.67,159.95
+45C261,10966,51.82130,5.17868,2015/09/05,08:30:23.041,161.99,30.02
+424050,10357,52.33214,4.21715,2015/09/05,08:30:23.050,-73.52,65.42
+401240,10973,52.27798,3.94598,2015/09/05,08:30:23.079,-79.98,80.81
+3950D1,6998,51.75334,4.62910,2015/09/05,08:30:23.091,-126.97,48.57
+4841A6,1523,52.43298,5.31036,2015/09/05,08:30:23.092,31.39,41.45
+342105,7447,51.35345,4.22089,2015/09/05,08:30:23.120,-131.28,101.01
+hex_ident,altitude(feet),latitude,longitude,date,time,angle,distance(meter)
+484443,12125,52.24008,3.99765,2015/09/05,12:54:14.926,-81.54,76395
+48415E,4175,52.31666,5.17440,2015/09/05,12:54:14.932,19.48,26338
+300092,3550,52.22533,4.70748,2015/09/05,12:54:14.933,-69.07,30312
+3C6DD4,25975,50.77332,5.39941,2015/09/05,12:54:14.934,167.2,147491
+4CA854,38000,51.80789,5.20393,2015/09/05,12:54:14.977,158.36,31868
+484C5A,16375,51.80800,4.67743,2015/09/05,12:54:14.980,-125.1,41818
 ````
+note: As you can see it is possible to switch over to different type units for 'altitude' and 'distance'!
+
 # Help page dump1090.socket30003.heatmap.pl
 ````
 This dump1090.socket30003.heatmap.pl script can create heatmap data.
-At this moment it only creates a file with java script code, which
-must be add to the script.js manualy in order to get a heatmap layer.
-Please read this post for more info:
+At this moment this script only creates a file with java script code, which must be add to 
+the script.js manualy in order to get a heatmap layer. Please read this post for more info:
 http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
+This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
+use the correct units for 'altitude' and 'distance' when the input files contain column headers 
+with the unit type between parentheses. When the input files doesn't contain column headers (as 
+produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
+Otherwise this script will use the default units.
+
+This script will create a heatmap of a square area around your antenna. You can change the default
+range by specifing the number of degrees -/+ to your antenna locations. This area will be devided
+squares. Default the heatmap has a resolution of 1000 x 1000 squares. The script will read all
+the flight position data from the input file(s) and count the times they match with a square the 
+heatmap. 
+
+The more positions match with a square on the heatmap, the more the 'weight' of that heatmap 
+position is. We use only the squares with the most matches (most 'weight) 'to create the heatmap.
+This is because the map in the browser gets to slow when you use too much locations in the heatmap.
+And this also depends on the amount of memory of your system. You can change the default number of
+heatmap positions. You can also set the maximum of 'weight' per heatmap location. 
 Syntax: dump1090.socket30003.heatmap.pl
 
 Optional parameters:
@@ -98,11 +124,12 @@ Optional parameters:
         -lon <lonitude>                 Location of your antenna.
         -lat <latitude>
 	-maxpositions <max positions>   Default is 100000 positions.
+	-maxweight <number>             Maximum position weight on the heatmap. The default is 1000.
 	-resolution <number>            Number of horizontal and vertical positions in output heatmap file.
 	                                Default is 1000, which means 1000x1000 positions.
 	-degrees <number>               To determine boundaries of area around the antenna.
 	                                (lat-degree -- lat+degree) x (lon-degree -- lon+degree)
-	                                De default is 3 degree.
+	                                De default is 4 degree.
 	-help                           This help page.
 
 note: 
@@ -131,19 +158,44 @@ Examples:
 ````
 # Help page dump1090.socket30003.radar.pl
 ````
-This dump1090.socket30003.radar.pl script can sort flight data (lat, lon and alt).
+This dump1090.socket30003.radar.pl script create location data for a radar view.
+At this moment this script only creates a file with track that can be imported in to coogle maps.
+Please read this post for more info:
+http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
+This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
+use the correct units for 'altitude' and 'distance' when the input files contain column headers 
+with the unit type between parentheses. When the input files doesn't contain column headers (as 
+produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
+Otherwise this script will use the default units.
+
+The flight position data is sorted in to altitude zones. For each zone and for each direction the
+most remote location is saved. The most remote locations per altitude zone will be written to a file as a track.
 Syntax: dump1090.socket30003.radar.pl
 
 Optional parameters:
 	-data <data directory>          The data files are stored in /tmp by default.
 	-filemask <mask>                Specify a filemask. The default filemask is 'dump.socket*.txt'.
-	-max <altitude>                 Upper limit. Default is 48000. Higher values in the input data will be skipped.
-	-min <altitude>                 Lower limit. Default is 0. Lower values in the input data will be skipped.
-	-directions <number>            Number of compass direction (pie slices). Minimal 8, maximal 7200. Default = 360.
-	-zones <number>                 Number of altitude zones. Minimal 1, maximum 99. Default = 16.
+	-max <altitude>                 Upper limit. Default is 48000. 
+	                                Higher values in the input data will be skipped.
+	-min <altitude>                 Lower limit. Default is 0. 
+	                                Lower values in the input data will be skipped.
+	-directions <number>            Number of compass direction (pie slices). 
+	                                Minimal 8, maximal 7200. Default = 360.
+	-zones <number>                 Number of altitude zones. 
+	                                Minimal 1, maximum 99. Default = 16.
 	-lon <lonitude>                 Location of your antenna.
 	-lat <latitude>    
+	-distanceunit <unit>[,<unit>]   Type of unit: kilometer, nauticalmile, mile or meter.
+	                                First unit is for the incoming source, the file(s) with flight positions.
+                                        The second unit is for the output file. 
+	                                No unit means it is the same as incoming.
+                                        Default distance unit's are: 'kilometer,kilometer'.
+        -altitudeunit <unit>[,<unit>]   Type of unit: feet or meter.
+                                        First unit is for the incoming source, the file(s) with flight positions.
+                                        The second unit is for the output file. 
+	                                No unit means it is the same as incoming.
+                                        Default altitude unit's are: 'meter,meter'.
 	-help                           This help page.             
 
 Notes: 
@@ -152,19 +204,20 @@ Notes:
 
 Examples:
 	dump1090.socket30003.radar.pl 
+	dump1090.socket30003.radar.pl -distanceunit kilometer,nauticalmile -altitudeunit meter,feet
 	dump1090.socket30003.radar.pl -data /home/pi
 ````
 # Output dump1090.socket30003.radar.pl
 * Default output file: /tmp/radar.csv
 ````
-type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude,latitude,longitude,date,time,angle,distance
-T,1,Altitude zone 1: 00000- 3000,yellow,1,    0,-143,44D991,1825,51.18549,4.40218,2015/08/17,14:50:34.875,-143.768514490891,110742.048628643
-T,0,Altitude zone 1: 00000- 3000,yellow,2,    0,-142,44D991,2675,51.18709,4.36372,2015/08/17,14:50:08.608,-142.218127849853,111744.222386486
-T,0,Altitude zone 1: 00000- 3000,yellow,3,    0,-131,484BCE,1900,51.61959,4.54590,2015/08/17,09:12:40.772,-131.800165083269,63848.8835462889
-T,0,Altitude zone 1: 00000- 3000,yellow,4,    0,-115,484BCD,1900,51.83739,4.54752,2015/08/17,14:22:53.568,-115.531263666627,46243.1709127753
-T,0,Altitude zone 1: 00000- 3000,yellow,5,    0,-114,44049F,2850,51.86472,4.59243,2015/08/17,23:48:20.523,-114.869577276237,41956.5893649617
-T,0,Altitude zone 1: 00000- 3000,yellow,6,    0,-113,484BCD,1925,51.87749,4.59830,2015/08/17,14:20:59.489,-113.843637113441,40805.7445058548
-T,0,Altitude zone 1: 00000- 3000,yellow,7,    0,-112,484BCD,1925,51.86591,4.53721,2015/08/17,14:23:51.021,-112.529875618193,45004.9231205215
-T,0,Altitude zone 1: 00000- 3000,yellow,8,    0,-111,44D991,2050,51.12048,2.48551,2015/08/17,14:33:01.602,-111.012812371387,209373.761058365
-T,0,Altitude zone 1: 00000- 3000,yellow,9,    0,-110,44D991,2650,51.11998,2.47987,2015/08/17,14:32:58.166,-110.980857750807,209737.525203623
+type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude(meter),latitude,longitude,date,time,angle,distance(kilometer)
+T,1,Altitude zone 1: 00000- 1000,yellow,1,    0,-575,484575,900,52.08119,5.08568,2015/08/19,15:58:15.725,-143.85,544
+T,0,Altitude zone 1: 00000- 1000,yellow,2,    0,-487,484E0A,825,52.08202,5.08301,2015/08/21,12:20:01.072,-121.86,575
+T,0,Altitude zone 1: 00000- 1000,yellow,3,    0,-485,484AEE,950,52.08199,5.08282,2015/08/21,12:53:41.929,-121.28,587
+T,0,Altitude zone 1: 00000- 1000,yellow,4,    0,-483,484AEE,950,52.08202,5.08278,2015/08/21,12:53:41.928,-120.91,587
+T,0,Altitude zone 1: 00000- 1000,yellow,5,    0,-469,484E0A,825,52.08311,5.08400,2015/08/21,12:19:57.468,-117.4,444
+T,0,Altitude zone 1: 00000- 1000,yellow,6,    0,-422,484E0A,825,52.08472,5.08568,2015/08/21,12:19:52.334,-105.59,251
+T,0,Altitude zone 1: 00000- 1000,yellow,7,    0,-412,4841D6,997,51.92171,4.35223,2015/09/04,16:56:45.997,-103.03,53
+T,0,Altitude zone 1: 00000- 1000,yellow,8,    0,-411,4841D6,967,51.92297,4.35482,2015/09/04,16:56:43.536,-102.97,53
+T,0,Altitude zone 1: 00000- 1000,yellow,9,    0,-410,4841D6,761,51.93031,4.37363,2015/09/04,16:56:28.453,-102.72,51
 ````
