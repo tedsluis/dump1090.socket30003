@@ -2,9 +2,11 @@
 
 dump1090.socket30003.pl
 * Collects dump1090 flight positions (ADB-S format) using socket 30003 and save them in csv format.
+
 dump1090.socket30003.heatmap.pl
 * Reads the flight positions from files in csv format and creates points for a heatmap.
 * The heatmap shows where planes come very often. It makes common routes visable.
+
 dump1090.socket30003.radar.pl
 * Reads the flight positions from files in csv format and creates a radar view map. 
 * The radar view shows the maximum range of your antenna for every altitude zone.
@@ -121,8 +123,8 @@ Syntax: dump1090.socket30003.heatmap.pl
 Optional parameters:
 	-data <data directory>          The data files are stored in /tmp by default.
 	-filemask <mask>                Specify a filemask. The default filemask is 'dump.socket*.txt'.
-        -lon <lonitude>                 Location of your antenna.
-        -lat <latitude>
+	-lon <lonitude>                 Location of your antenna.
+	-lat <latitude>
 	-maxpositions <max positions>   Default is 100000 positions.
 	-maxweight <number>             Maximum position weight on the heatmap. The default is 1000.
 	-resolution <number>            Number of horizontal and vertical positions in output heatmap file.
@@ -188,14 +190,14 @@ Optional parameters:
 	-lat <latitude>    
 	-distanceunit <unit>[,<unit>]   Type of unit: kilometer, nauticalmile, mile or meter.
 	                                First unit is for the incoming source, the file(s) with flight positions.
-                                        The second unit is for the output file. 
+	                                The second unit is for the output file. 
 	                                No unit means it is the same as incoming.
-                                        Default distance unit's are: 'kilometer,kilometer'.
+	                                Default distance unit's are: 'kilometer,kilometer'.
         -altitudeunit <unit>[,<unit>]   Type of unit: feet or meter.
-                                        First unit is for the incoming source, the file(s) with flight positions.
-                                        The second unit is for the output file. 
+	                                First unit is for the incoming source, the file(s) with flight positions.
+	                                The second unit is for the output file. 
 	                                No unit means it is the same as incoming.
-                                        Default altitude unit's are: 'meter,meter'.
+	                                Default altitude unit's are: 'meter,meter'.
 	-help                           This help page.             
 
 Notes: 
