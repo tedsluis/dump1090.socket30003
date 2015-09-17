@@ -10,8 +10,9 @@ dump1090.socket30003.heatmap.pl
 dump1090.socket30003.radar.pl
 * Reads the flight positions from files in csv format and creates a radar view map. 
 * The radar view shows the maximum range of your antenna for every altitude zone.
+* Add KML output support.
 
-0.1 version / 2015-09-05 / Ted Sluis
+0.1 version / 2015-09-17 / Ted Sluis
 
 Read more about this at:
 http://discussions.flightaware.com/topic35844.html
@@ -226,3 +227,38 @@ T,0,Altitude zone 1: 00000- 1000,yellow,7,    0,-412,4841D6,997,51.92171,4.35223
 T,0,Altitude zone 1: 00000- 1000,yellow,8,    0,-411,4841D6,967,51.92297,4.35482,2015/09/04,16:56:43.536,-102.97,53
 T,0,Altitude zone 1: 00000- 1000,yellow,9,    0,-410,4841D6,761,51.93031,4.37363,2015/09/04,16:56:28.453,-102.72,51
 ````
+
+* Default output file: /tmp/radar.kml
+````
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Paths</name>
+    <description>Example</description>
+<Style id="track-1">
+      <LineStyle>
+        <color>ff135beb</color>
+        <width>2</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>ff135beb</color>
+      </PolyStyle>
+    </Style>
+    <Placemark>
+      <name>1</name>
+      <description>00000- 1000</description>
+      <styleUrl>#track-1</styleUrl>
+      <LineString>
+        <altitudeMode>absolute</altitudeMode>
+        <coordinates>
+5.08867,51.44989,883
+5.08578,51.40952,975
+5.08288,51.41190,960
+5.07279,51.02161,876
+5.07472,51.42160,922
+5.07301,51.42279,922
+5.07093,51.46349,883
+5.06588,51.43039,891
+etc..
+````
+

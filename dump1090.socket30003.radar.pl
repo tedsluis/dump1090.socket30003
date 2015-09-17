@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-06
+# Ted Sluis 2015-09-17
 # Filename : dump1090.socket30003.radar.pl
 #
 #===============================================================================
@@ -404,42 +404,126 @@ foreach my $filename (@files) {
 print "\nNumber of files read: $filecounter\n";
 print "Number of position processed: $position and positions within range processed: $positioncounter\n";
 #===============================================================================
-my @color = ("blue","yellow","red","green","violet","orange","cyan","magenta");
+# convert hsl colors to bgr colors
+sub hsl_to_bgr(@) {
+    	my ($h, $s, $l) = @_;
+	print "h=$h,s=$s,l=$l,";
+    	my ($r, $g, $b);
+    	if ($s == 0){
+    		$r = $g = $b = $l;
+    	} else {
+   		sub hue2rgb(@){
+            		my ($p, $q, $t) = @_;
+            		while ($t < 0) { $t += 1;                                   }
+            		while ($t > 1) { $t -= 1;                                   }
+            		if ($t < 1/6)  { return $p + ($q - $p) * 6 * $t;            }
+            		if ($t < 1/2)  { return $q;                                 }
+            		if ($t < 2/3)  { return $p + ($q - $p) * (2/3 - $t) * 6;    }
+            		return $p;
+        	}
+        	my $q = $l < 0.5 ? $l * (1 + $s) : $l + $s - $l * $s;
+        	my $p = 2 * $l - $q;
+        	$r = hue2rgb($p, $q, $h + 1/3);
+        	$g = hue2rgb($p, $q, $h);
+        	$b = hue2rgb($p, $q, $h - 1/3);
+    	}
+	print "b=$b,g=$g,r=$r,----->";
+    	$r = sprintf("%x",int($r * 255));
+	$g = sprintf("%x",int($g * 255)); 
+	$b = sprintf("%x",int($b * 255));
+	print "b=$b,g=$g,r=$r.\n";
+	return $b.$g.$r;
+}
+#================================================================================
+my @color = ("7f0000ff","7fffff00","7fff0033","7f00cc00","7fff00ff","7fff6600","7f660099","7f00ffff");
 my $data_filehandle;
+my $kml_filehandle;
 my $trackpoint=0;
 my $track=0;
 my $newtrack;
 print "datafile=$datadirectory/radar.csv\n";
+print "kmlfile=$datadirectory/radar.kml\n";
 open($data_filehandle, '>',"$datadirectory/radar.csv") or die "Unable to open '$datadirectory/radar.csv'!\n";
+open($kml_filehandle, '>',"$datadirectory/radar.kml") or die "Unable to open '$datadirectory/radar.kml'!\n";
 print $data_filehandle "type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude($altitudeunit{'out'}),latitude,longitude,date,time,angle,distance($distanceunit{'out'})\n";
+print $kml_filehandle "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<kml xmlns=\"http://www.opengis.net/kml/2.2\">
+  <Document>
+    <name>Paths</name>
+    <description>Example</description>\n";
 foreach my $altitude_zone (sort {$a<=>$b} keys %data) {
 	$track++;
+        # convert altitude to feet:
+        my $altitude_feet = $altitude_zone / $convertalt{'out'} * 3.2808399;
+	my $s = 85;
+	my $l = 50;
+	my $h = 20;
+	my @val = (20,140,300);
+	my @alt = (2000,10000,40000);
+	foreach my $index (0..$#alt) {
+		if ($altitude_zone > $alt[$index]) {
+			if ($index == 2) {
+				$h = $val[$index];
+			} else {
+				$h = ($val[$index] + ($val[$index+1] - $val[$index]) * ($altitude_feet - $alt[$index]) / ($alt[$index+1] - $alt[$index]));
+			}
+			last;
+		}
+	}
+	if ($h < 0) {$h = ($h % 360) + 360;} elsif ($h >= 360) {$h = $h % 360;}
+        if ($s < 5) {$s = 5;} elsif ($s > 95) {$s = 95;}
+        if ($l < 5) {$l = 5;} elsif ($l > 95) {$l = 95;}
+print "altitude_feet=$altitude_feet,altitude_zone=$altitude_zone,";
+	my $kml_color = "ff".hsl_to_bgr($h/360,$s/100,$l/100);
+	# Determine color
+	my $colornumber = $track;
+	while ($colornumber > 7) {
+		$colornumber = $colornumber - 8;
+	}
 	my $alt_zone_name = sprintf("%05d-%5d",$altitude_zone,($altitude_zone + $zone_altitude));
 	my $positionperzonecounter = sprintf("% 9d",$positionperzonecounter{$altitude_zone});
 	my $tracknumber = sprintf("% 2d",$track);
 	$newtrack = 1;
 	my $min_positions_per_direction =0;
 	my $max_positions_per_direction =0;
+	print $kml_filehandle "<Style id=\"track-$track\">
+      <LineStyle>
+        <color>$kml_color</color>
+        <width>2</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>$kml_color</color>
+      </PolyStyle>
+    </Style>
+    <Placemark>
+      <name>$track</name>
+      <description>$alt_zone_name</description>
+      <styleUrl>#track-$track</styleUrl>
+      <LineString>
+        <altitudeMode>absolute</altitudeMode>
+        <coordinates>\n";
 	foreach my $direction_zone (sort {$a<=>$b} keys %{$data{$altitude_zone}}) {
 		my @row;
+		my @kml;
 		foreach my $header ("hex_ident","altitude","latitude","longitude","date","time","angle","distance") {
 			push(@row,$data{$altitude_zone}{$direction_zone}{$header});
 		}
 		$trackpoint++;
-		# Determine color
-		my $colornumber = $track;
-		while ($colornumber > 7) {
-			$colornumber = $colornumber - 8;
-		}
+	  	print $kml_filehandle "$data{$altitude_zone}{$direction_zone}{'longitude'},$data{$altitude_zone}{$direction_zone}{'latitude'},$data{$altitude_zone}{$direction_zone}{'altitude'}\n";	
 		print $data_filehandle "T,$newtrack,Altitude zone $track: $alt_zone_name,$color[$colornumber],$trackpoint,$altitude_zone,$direction_zone,".join(",",@row)."\n";
 		$newtrack = 0;
 		$min_positions_per_direction = $positionperdirectioncounter{$altitude_zone}{$direction_zone} if ($positionperdirectioncounter{$altitude_zone}{$direction_zone} < $max_positions_per_direction);
 		$max_positions_per_direction = $positionperdirectioncounter{$altitude_zone}{$direction_zone} if ($positionperdirectioncounter{$altitude_zone}{$direction_zone} > $max_positions_per_direction);
 	}
+	print $kml_filehandle "</coordinates>
+      </LineString>
+    </Placemark>\n";
 	my $real_number_of_directions = scalar keys %{$positionperdirectioncounter{$altitude_zone}};
 	my $avarage_positions_per_direction = sprintf("% 6d",($positionperzonecounter{$altitude_zone} / $number_of_directions));
 	my $avarage_positions_per_real_direction =sprintf("% 6d",($positionperzonecounter{$altitude_zone} / $real_number_of_directions));
 	my $line = sprintf("% 3d,Altitude zone:% 6d-% 6d,Directions:% 5d/% 5d,Positions processed:% 10d,Positions processed per direction: min:% 6d,max:% 6d,avg:% 6d,real avg:% 6d",$tracknumber,$altitude_zone,($altitude_zone + $zone_altitude-1),($real_number_of_directions+1),$number_of_directions,$positionperzonecounter{$altitude_zone},$min_positions_per_direction,$max_positions_per_direction,$avarage_positions_per_direction,$avarage_positions_per_real_direction);
 	print $line."\n";
 }
+print $kml_filehandle "</Document>
+</kml>\n";
 
