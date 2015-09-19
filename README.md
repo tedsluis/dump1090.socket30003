@@ -14,7 +14,6 @@ dump1090.socket30003.radar.pl
 * Add KML output support.
 
 The output heatmapdata.csv and radarview.kml can be displayed in a modified variant of dump1090-mutability.
-More info at: http://discussions.flightaware.com/post180859.html
 
 0.1 version / 2015-09-19 / Ted Sluis
 
@@ -267,7 +266,7 @@ Optional parameters:
 	                                The second unit is for the output file. 
 	                                No unit means it is the same as incoming.
 	                                Default distance unit's are: 'kilometer,kilometer'.
-        -altitudeunit <unit>[,<unit>]   Type of unit: feet or meter.
+	-altitudeunit <unit>[,<unit>]   Type of unit: feet or meter.
 	                                First unit is for the incoming
 	                                source, the file(s) with flight positions.
 	                                The second unit is for the output file. 
