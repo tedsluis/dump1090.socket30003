@@ -6,39 +6,47 @@ dump1090.socket30003.pl
 dump1090.socket30003.heatmap.pl
 * Reads the flight positions from files in csv format and creates points for a heatmap.
 * The heatmap shows where planes come very often. It makes common routes visable.
+* Output in csv format and locations in javascript code.
 
 dump1090.socket30003.radar.pl
 * Reads the flight positions from files in csv format and creates a radar view map. 
 * The radar view shows the maximum range of your antenna for every altitude zone.
 * Add KML output support.
 
-0.1 version / 2015-09-17 / Ted Sluis
+The output heatmapdata.csv and radarview.kml can be displayed in a modified variant of dump1090-mutability.
+More info at: http://discussions.flightaware.com/post180859.html
+
+0.1 version / 2015-09-19 / Ted Sluis
 
 Read more about this at:
 http://discussions.flightaware.com/topic35844.html
 
 # Help page dump1090.socket30003.pl
 ````
-This dump1090.socket30003.pl script retrieves flight data (like lat, lon and alt) from a dump1090 
-host using port 30003 and calcutates the distance and angle between the antenna and the plane. It 
-will store these values in an output file in csv format (seperated by commas).
+This dump1090.socket30003.pl script can retrieve flight data (lat, lon and alt) from
+a dump1090 host using port 30003 and calcutates the distance and angle
+between the antenna and the plane. It will store these values in an 
+output file in csv format (seperated by commas).
 
+This script can run several times simultaneously on one host retrieving
+data from multiple dump1090 instances. Each instance can use the same 
+directories, but they all have their own data, log and pid files. And 
+every day the script will create a new data and log file.
 
-This script can run several times simultaneously on one host retrieving data from multiple dump1090
-instances. Each instance can use the same directories, but they all have their own data, log and 
-pid files. And every day the script will create a new data and log file.
+A data files contain column headers (with the names of the columns). 
+Columns headers like 'altitude' and 'distance' also contain their unit
+between parentheses, for example '3520(feet)' or '12,3(kilometer)'. This
+makes it more easy to parse the columns when using this data in other
+scripts. Every time the script is (re)started a header wiil be written 
+in to the data file. This way it is possible to switch a unit, for 
+example from 'meter' to 'kilometer', and other scripts will still be able
+to determine the correct unit type.
 
-A data files contain column headers (with the names of the columns). Columns headers like 'altitude'
-and 'distance' also contain their unit between parentheses, for example '3520(feet)' or 
-'12,3(kilometer)'. This makes it more easy to parse the columns when using this data in other scripts. 
-Every time the script is (re)started a header wiil be written in to the data file. This way it is 
-possible to switch a unit, for example from 'meter' to 'kilometer', and other scripts will still be
-able to determine the correct unit type.
-
-The script can be lauched as a background process. It can be stopped by using the -stop parameter
-or by removing the pid file. When it not running as a background process, it can also be stopped 
-by pressing CTRL-C. The script will write the current data and log entries to the filesystem 
-before exiting...
+The script can be lauched as a background process. It can be stopped by
+using the -stop parameter or by removing the pid file. When it not 
+running as a background process, it can also be stopped by pressing 
+CTRL-C. The script will write the current data and log entries to the 
+filesystem before exiting...
 
 Syntax: dump1090.socket30003.pl
 
@@ -54,11 +62,11 @@ Optional parameters:
 	-msgmargin <max message margin> The max message margin. The default is 10ms.
 	-lon <lonitude>                 Location of your antenna.
 	-lat <latitude>			
-	-distanceunit <unit>            Type of unit: kilometer, nauticalmile, mile or meter
+	-distanceunit <unit>            Type of unit: kilometer, nauticalmile, mile or meter.
 	                                Default distance unit is kilometer.
 	-altitudeunit <unit>            Type of unit: meter or feet.
 	                                Default altitude unit is meter.
-	-nopositions                    Does not display the number of position when running
+	-nopositions                    Does not display the number of position when running.
 	                                interactive (launched from commandline).
 	-help                           This help page.
 
@@ -100,46 +108,71 @@ note: As you can see it is possible to switch over to different type units for '
 
 # Help page dump1090.socket30003.heatmap.pl
 ````
-This dump1090.socket30003.heatmap.pl script can create heatmap data.
-At this moment this script only creates a file with java script code, which must be add to 
-the script.js manualy in order to get a heatmap layer. Please read this post for more info:
+This dump1090.socket30003.heatmap.pl script creates heatmap data 
+which can be displated in a modified variant of dump1090-mutobility.
+
+It creates two output files:
+1) One file with locations in java script code, which must be added
+   to the script.js manualy.
+2) One file with location data in csv format, which can be imported
+   from the dump1090 GUI.
+
+Please read this post for more info:
 http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
-use the correct units for 'altitude' and 'distance' when the input files contain column headers 
-with the unit type between parentheses. When the input files doesn't contain column headers (as 
-produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
-Otherwise this script will use the default units.
+This script uses the output file(s) of the 'dump1090.socket30003.pl'
+script. It will automaticly use the correct units (feet, meter, 
+kilometer, mile, natical mile)  for 'altitude' and 'distance' when 
+the input files contain column headers with the unit type between 
+parentheses. When the input files doesn't contain column headers 
+(as produced by older versions of 'dump1090.socket30003.pl' script)
+you can specify the units. Otherwise this script will use the 
+default units.
 
-This script will create a heatmap of a square area around your antenna. You can change the default
-range by specifing the number of degrees -/+ to your antenna locations. This area will be devided
-squares. Default the heatmap has a resolution of 1000 x 1000 squares. The script will read all
-the flight position data from the input file(s) and count the times they match with a square the 
-heatmap. 
+This script will create a heatmap of a square area around your 
+antenna. You can change the default range by specifing the number
+of degrees -/+ to your antenna locations. This area will be devided
+in to small squares. The default heatmap has a resolution of 
+1000 x 1000 squares. The script will read all the flight position 
+data from the input file(s) and count the times they match with a 
+square on the heatmap. 
 
-The more positions match with a square on the heatmap, the more the 'weight' of that heatmap 
-position is. We use only the squares with the most matches (most 'weight) 'to create the heatmap.
-This is because the map in the browser gets to slow when you use too much locations in the heatmap.
-And this also depends on the amount of memory of your system. You can change the default number of
-heatmap positions. You can also set the maximum of 'weight' per heatmap location. 
+The more positions match with a particular square on the heatmap, 
+the more the 'weight' that heatmap position gets. We use only the 
+squares with the most matches (most 'weight) 'to create the heatmap.
+This is because the map in the browser gets to slow when you use 
+too much positions in the heatmap. Of cource this also depends on 
+the amount of memory of your system. You can change the default 
+number of heatmap positions. You can also set the maximum of 
+'weight' per heatmap position. 
+
+
 Syntax: dump1090.socket30003.heatmap.pl
 
 Optional parameters:
-	-data <data directory>          The data files are stored in /tmp by default.
-	-filemask <mask>                Specify a filemask. The default filemask is 'dump.socket*.txt'.
+	-data <data directory>          The data files are stored
+	                                 in /tmp by default.
+	-filemask <mask>                Specify a filemask. The 
+	                                default filemask is 'dump*.txt'.
 	-lon <lonitude>                 Location of your antenna.
 	-lat <latitude>
 	-maxpositions <max positions>   Default is 100000 positions.
-	-maxweight <number>             Maximum position weight on the heatmap. The default is 1000.
-	-resolution <number>            Number of horizontal and vertical positions in output heatmap file.
-	                                Default is 1000, which means 1000x1000 positions.
-	-degrees <number>               To determine boundaries of area around the antenna.
-	                                (lat-degree -- lat+degree) x (lon-degree -- lon+degree)
-	                                De default is 4 degree.
+	-maxweight <number>             Maximum position weight on 
+	                                the heatmap. The default is 1000.
+	-resolution <number>            Number of horizontal and vertical
+	                                positions in output heatmap file.
+	                                Default is 1000, which 
+	                                means 1000x1000 positions.
+	-degrees <number>               To determine boundaries of 
+	                                area around the antenna.
+	                                (lat-degree <--> lat+degree) x
+	                                (lon-degree <--> lon+degree)
+	                                De default is 5 degree.
 	-help                           This help page.
 
 note: 
-	The default values can be changed within the script (in the most upper section).
+	The default values can be changed within the script 
+	(in the most upper section).
 
 
 Examples:
@@ -148,7 +181,7 @@ Examples:
 	dump1090.socket30003.heatmap.pl -lat 52.1 -lon 4.1 -maxposition 50000
 ````
 # Output dump1090.socket30003.heatmap.pl
-* Default output file: /tmp/heatmap.csv
+* Default output file: /tmp/heatmapcode.csv
 ````
 {location: new google.maps.LatLng(51.025, 3.1), weight: 706},
 {location: new google.maps.LatLng(50.925, 4.4), weight: 706},
@@ -162,43 +195,81 @@ Examples:
 {location: new google.maps.LatLng(52.362, 6.2), weight: 705},
 {location: new google.maps.LatLng(52.35, 5.5), weight: 705},
 ````
+* Default output file: /tmp/heatmapdata.csv
+````
+"weight";"lat";"lon"
+"1000";"52.397";"4.721"
+"919";"52.389";"4.721"
+"841";"52.405";"4.721"
+"753";"52.413";"4.721"
+"750";"52.517";"5.297"
+"743";"52.317";"5.177"
+"679";"51.925";"2.849"
+"641";"51.853";"6.065"
+"609";"51.229";"3.649"
+````
 # Help page dump1090.socket30003.radar.pl
 ````
-This dump1090.socket30003.radar.pl script create location data for a radar view.
-At this moment this script only creates a file with track that can be imported in to coogle maps.
+This dump1090.socket30003.radar.pl script create location data 
+for a radar view which can be displated in a modified variant 
+of dump1090-mutobility.
+
+It creates two output files:
+1) One file with location dat in csv format can be imported
+   in to tools like http://www.gpsvisualizer.com. 
+2) One file with location data in kml format, which can be 
+   imported into a modified dum1090-mutability variant.
+
 Please read this post for more info:
 http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
-use the correct units for 'altitude' and 'distance' when the input files contain column headers 
-with the unit type between parentheses. When the input files doesn't contain column headers (as 
-produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
-Otherwise this script will use the default units.
+This script uses the output file(s) of the 
+'dump1090.socket30003.pl' script. It will automaticly use the
+correct units (feet, meter, mile, nautical mile of kilometer)
+for 'altitude' and 'distance' when the input files contain 
+column headers with the unit type between parentheses. When 
+the input files doesn't contain column headers (as produced 
+by older versions of 'dump1090.socket30003.pl' script) you 
+can specify the units.Otherwise this script will use the 
+default units.
 
-The flight position data is sorted in to altitude zones. For each zone and for each direction the
-most remote location is saved. The most remote locations per altitude zone will be written to a file as a track.
+The flight position data is sorted in to altitude zones. For 
+each zone and for each direction the most remote location is 
+saved. The most remote locations per altitude zone will be 
+written to a file as a track. 
+
+
 Syntax: dump1090.socket30003.radar.pl
 
 Optional parameters:
-	-data <data directory>          The data files are stored in /tmp by default.
-	-filemask <mask>                Specify a filemask. The default filemask is 'dump.socket*.txt'.
+	-data <data directory>          The data files are stored 
+	                                in /tmp by default.
+	-filemask <mask>                Specify a filemask. The 
+	                                default filemask is 'dump.socket*.txt'.
 	-max <altitude>                 Upper limit. Default is 48000. 
-	                                Higher values in the input data will be skipped.
+	                                Higher values in the input 
+	                                data will be skipped.
 	-min <altitude>                 Lower limit. Default is 0. 
-	                                Lower values in the input data will be skipped.
+	                                Lower values in the 
+	                                input data will be skipped.
 	-directions <number>            Number of compass direction (pie slices). 
-	                                Minimal 8, maximal 7200. Default = 360.
+	                                Minimal 8, maximal 7200. 
+	                                Default = 360.
 	-zones <number>                 Number of altitude zones. 
-	                                Minimal 1, maximum 99. Default = 16.
+	                                Minimal 1, maximum 99. 
+	                                Default = 16.
 	-lon <lonitude>                 Location of your antenna.
 	-lat <latitude>    
-	-distanceunit <unit>[,<unit>]   Type of unit: kilometer, nauticalmile, mile or meter.
-	                                First unit is for the incoming source, the file(s) with flight positions.
+	-distanceunit <unit>[,<unit>]   Type of unit: kilometer,
+	                                nauticalmile, mile or meter.
+	                                First unit is for the incoming
+	                                source, the file(s) with flight positions.
 	                                The second unit is for the output file. 
 	                                No unit means it is the same as incoming.
 	                                Default distance unit's are: 'kilometer,kilometer'.
         -altitudeunit <unit>[,<unit>]   Type of unit: feet or meter.
-	                                First unit is for the incoming source, the file(s) with flight positions.
+	                                First unit is for the incoming
+	                                source, the file(s) with flight positions.
 	                                The second unit is for the output file. 
 	                                No unit means it is the same as incoming.
 	                                Default altitude unit's are: 'meter,meter'.

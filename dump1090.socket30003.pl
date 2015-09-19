@@ -145,25 +145,30 @@ GetOptions(
 # Check options:
 if ($help) {
 	print "
-This $scriptname script can retrieve flight data (lat, lon and alt) from a dump1090 host 
-using port 30003 and calcutates the distance and angle between the antenna and the plane. It will 
-store these values in an output file in csv format (seperated by commas).\n
+This $scriptname script can retrieve flight data (lat, lon and alt) from
+a dump1090 host using port 30003 and calcutates the distance and angle
+between the antenna and the plane. It will store these values in an 
+output file in csv format (seperated by commas).
 
-This script can run several times simultaneously on one host retrieving data from multiple dump1090
-instances. Each instance can use the same directories, but they all have their own data, log and 
-pid files. And every day the script will create a new data and log file.
+This script can run several times simultaneously on one host retrieving
+data from multiple dump1090 instances. Each instance can use the same 
+directories, but they all have their own data, log and pid files. And 
+every day the script will create a new data and log file.
 
-A data files contain column headers (with the names of the columns). Columns headers like 'altitude'
-and 'distance' also contain their unit between parentheses, for example '3520(feet)' or 
-'12,3(kilometer)'. This makes it more easy to parse the columns when using this data in other scripts. 
-Every time the script is (re)started a header wiil be written in to the data file. This way it is 
-possible to switch a unit, for example from 'meter' to 'kilometer', and other scripts will still be
-able to determine the correct unit type.
+A data files contain column headers (with the names of the columns). 
+Columns headers like 'altitude' and 'distance' also contain their unit
+between parentheses, for example '3520(feet)' or '12,3(kilometer)'. This
+makes it more easy to parse the columns when using this data in other
+scripts. Every time the script is (re)started a header wiil be written 
+in to the data file. This way it is possible to switch a unit, for 
+example from 'meter' to 'kilometer', and other scripts will still be able
+to determine the correct unit type.
 
-The script can be lauched as a background process. It can be stopped by using the -stop parameter
-or by removing the pid file. When it not running as a background process, it can also be stopped 
-by pressing CTRL-C. The script will write the current data and log entries to the filesystem 
-before exiting...
+The script can be lauched as a background process. It can be stopped by
+using the -stop parameter or by removing the pid file. When it not 
+running as a background process, it can also be stopped by pressing 
+CTRL-C. The script will write the current data and log entries to the 
+filesystem before exiting...
 
 Syntax: $scriptname
 
@@ -179,11 +184,13 @@ Optional parameters:
 	-msgmargin <max message margin> The max message margin. The default is 10ms.
 	-lon <lonitude>			Location of your antenna.
 	-lat <latitude>
-	-distanceunit <unit>            Type of unit for distance: kilometer, nauticalmile, mile or meter
+	-distanceunit <unit>            Type of unit for distance: kilometer, 
+	                                nauticalmile, mile or meter
 	                                Default distance unit is kilometer.
 	-altitudeunit <unit>	        Type of unit for altitude: meter or feet.
 					Default altitude unit is meter.
-        -nopositions                    Does not display the number of position while running
+        -nopositions                    Does not display the number of position while
+	                                running.
                                         interactive (launched from commandline).
 	-debug                          Display raw socket messages.
 	-help				This help page.
