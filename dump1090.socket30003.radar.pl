@@ -127,40 +127,61 @@ if ($error) {
 #===============================================================================
 # Check options:
 if ($help) {
-	print "\nThis $scriptname script create location data for a radar view.
-At this moment this script only creates a file with track that can be imported in to coogle maps.
+	print "\nThis $scriptname script create location data 
+for a radar view which can be displated in a modified variant 
+of dump1090-mutobility.
+
+It creates two output files:
+1) One file with location dat in csv format can be imported
+   in to tools like http://www.gpsvisualizer.com. 
+2) One file with location data in kml format, which can be 
+   imported into a modified dum1090-mutability variant.
+
 Please read this post for more info:
 http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
-use the correct units for 'altitude' and 'distance' when the input files contain column headers 
-with the unit type between parentheses. When the input files doesn't contain column headers (as 
-produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
-Otherwise this script will use the default units.
+This script uses the output file(s) of the 
+'dump1090.socket30003.pl' script. It will automaticly use the
+correct units (feet, meter, mile, nautical mile of kilometer)
+for 'altitude' and 'distance' when the input files contain 
+column headers with the unit type between parentheses. When 
+the input files doesn't contain column headers (as produced 
+by older versions of 'dump1090.socket30003.pl' script) you 
+can specify the units.Otherwise this script will use the 
+default units.
 
-The flight position data is sorted in to altitude zones. For each zone and for each direction the
-most remote location is saved. The most remote locations per altitude zone will be written to a file as a track. 
+The flight position data is sorted in to altitude zones. For 
+each zone and for each direction the most remote location is 
+saved. The most remote locations per altitude zone will be 
+written to a file as a track. 
 
 Syntax: $scriptname
 
 Optional parameters:
 	-data <data directory>		    The data files are stored in /tmp by default.
-	-filemask <mask>		    Specify a filemask. The default filemask is 'dump.socket*.txt'.
+	-filemask <mask>		    Specify a filemask. 
+	                                    The default filemask is 'dump.socket*.txt'.
 	-max <altitude>			    Upper limit. Default is '$default_max_altitude $altitudeunit{'out'}'. 
 	                                    Higher values in the input data will be skipped.
 	-min <altitude>			    Lower limit. Default is '$default_min_altitude $altitudeunit{'out'}'. 
 	                                    Lower values in the input data will be skipped.
-	-directions <number>		    Number of compass direction (pie slices). Minimal 8, maximal 7200. Default = 360.
-	-zones <number>			    Number of altitude zones. Minimal 1, maximum 99. Default = 16.
+	-directions <number>		    Number of compass direction (pie slices). 
+	                                    Minimal 8, maximal 7200. Default = 360.
+	-zones <number>			    Number of altitude zones. Minimal 1, maximum 99. 
+	                                    Default = 16.
         -lon <lonitude>                     Location of your antenna.
         -lat <latitude>                 
         -distanceunit <unit>[,<unit>]       Type of unit: kilometer, nauticalmile, mile or meter.
-	                                    First unit is for the incoming source, the file(s) with flight positions.
-                                            The second unit is for the output file. No unit means it is the same as incoming.
+	                                    First unit is for the incoming source, 
+	                                    the file(s) with flight positions.
+                                            The second unit is for the output file. No unit 
+	                                    means it is the same as incoming.
                                             Default distance unit's are: '$defaultdistanceunit'.
         -altitudeunit <unit>[,<unit>]       Type of unit: feet or meter.
-                                            First unit is for the incoming source, the file(s) with flight positions.
-                                            The second unit is for the output file. No unit means it is the same as incoming.
+                                            First unit is for the incoming source, 
+	                                    the file(s) with flight positions.
+                                            The second unit is for the output file. No unit 
+	                                    means it is the same as incoming.
                                             Default altitude unit's are: '$defaultaltitudeunit'.
 Notes: 
 	- The default values can be change within the script (in the most upper section).
@@ -441,8 +462,8 @@ my $kml_filehandle;
 my $trackpoint=0;
 my $track=0;
 my $newtrack;
-print "datafile=$datadirectory/radar.csv\n";
-print "kmlfile=$datadirectory/radar.kml\n";
+print "datafile= $datadirectory/radar.csv\n";
+print "kmlfile= $datadirectory/radar.kml\n";
 open($data_filehandle, '>',"$datadirectory/radar.csv") or die "Unable to open '$datadirectory/radar.csv'!\n";
 open($kml_filehandle, '>',"$datadirectory/radar.kml") or die "Unable to open '$datadirectory/radar.kml'!\n";
 print $data_filehandle "type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude($altitudeunit{'out'}),latitude,longitude,date,time,angle,distance($distanceunit{'out'})\n";
