@@ -1,14 +1,15 @@
 #!/usr/bin/perl -w
 #
-# Ted Sluis 2015-09-06
+# Ted Sluis 2015-09-06-19
 # dump1090.socket30003.heatmap.pl
 #
 #===============================================================================
 # Default setting:
 my $default_datadirectory = "/tmp";
-my $outputfile            = "heatmap.csv";
+my $outputfile            = "heatmapcode.csv";
+my $outputdatafile	  = "heatmapdata.csv";
 my ($latitude,$longitude) = (52.085624,5.0890591); # Antenna location
-my $degrees               = 4;                     # used to determine boundary of area around antenne.
+my $degrees               = 5;                     # used to determine boundary of area around antenne.
 my $resolution            = 1000;                  # number of horizontal and vertical positions in output file.
 my $max_positions         = 100000;                # maximum number of positions in the outputfile.
 my $max_weight            = 1000;                  # maximum position weight on the heatmap.
@@ -60,28 +61,43 @@ GetOptions(
 #===============================================================================
 # Check options:
 if ($help) {
-	print "\nThis $scriptname script can create heatmap data.
-At this moment this script only creates a file with java script code, which must be add to 
-the script.js manualy in order to get a heatmap layer. Please read this post for more info:
+	print "\nThis $scriptname script creates heatmap data 
+which can be displated in a modified variant of dump1090-mutobility.
+
+It creates two output files:
+1) One file with locations in java script code, which must be added
+   to the script.js manualy.
+2) One file with location data in csv format, which can be imported
+   from the dump1090 GUI.
+
+Please read this post for more info:
 http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl' script. It will automaticly 
-use the correct units for 'altitude' and 'distance' when the input files contain column headers 
-with the unit type between parentheses. When the input files doesn't contain column headers (as 
-produced by older versions of 'dump1090.socket30003.pl' script) you can speficy the units.
-Otherwise this script will use the default units.
+This script uses the output file(s) of the 'dump1090.socket30003.pl'
+script. It will automaticly use the correct units (feet, meter, 
+kilometer, mile, natical mile)  for 'altitude' and 'distance' when 
+the input files contain column headers with the unit type between 
+parentheses. When the input files doesn't contain column headers 
+(as produced by older versions of 'dump1090.socket30003.pl' script)
+you can specify the units. Otherwise this script will use the 
+default units.
 
-This script will create a heatmap of a square area around your antenna. You can change the default
-range by specifing the number of degrees -/+ to your antenna locations. This area will be devided
-squares. Default the heatmap has a resolution of 1000 x 1000 squares. The script will read all
-the flight position data from the input file(s) and count the times they match with a square the 
-heatmap. 
+This script will create a heatmap of a square area around your 
+antenna. You can change the default range by specifing the number
+of degrees -/+ to your antenna locations. This area will be devided
+in to small squares. The default heatmap has a resolution of 
+1000 x 1000 squares. The script will read all the flight position 
+data from the input file(s) and count the times they match with a 
+square on the heatmap. 
 
-The more positions match with a square on the heatmap, the more the 'weight' of that heatmap 
-position is. We use only the squares with the most matches (most 'weight) 'to create the heatmap.
-This is because the map in the browser gets to slow when you use too much locations in the heatmap.
-And this also depends on the amount of memory of your system. You can change the default number of
-heatmap positions. You can also set the maximum of 'weight' per heatmap location. 
+The more positions match with a particular square on the heatmap, 
+the more the 'weight' that heatmap position gets. We use only the 
+squares with the most matches (most 'weight) 'to create the heatmap.
+This is because the map in the browser gets to slow when you use 
+too much positions in the heatmap. Of cource this also depends on 
+the amount of memory of your system. You can change the default 
+number of heatmap positions. You can also set the maximum of 
+'weight' per heatmap position. 
 
 Syntax: $scriptname
 
@@ -95,8 +111,8 @@ Optional parameters:
 	-resolution <number>            Number of horizontal and vertical positions in output file.
 	                                Default is 1000, which means 1000x1000 positions.
 	-degrees <number>               To determine boundaries of area around the antenna.
-	                                (lat-degree -- lat+degree) x (lon-degree -- lon+degree)
-	                                De default is 4 degree.
+	                                (lat-degree <--> lat+degree) x (lon-degree <--> lon+degree)
+	                                De default is 5 degree.
 	-help				This help page.
 
 note: 
@@ -127,7 +143,7 @@ if ($degrees) {
                 exit;
         }
 } else {
-        $degrees = 4;
+        $degrees = 5;
 }
 my $factor = int($resolution / ($degrees * 2));
 #===============================================================================
@@ -215,7 +231,10 @@ if (@files == 0) {
 #===============================================================================
 my %pos;
 $outputfile = "$datadirectory/$outputfile";
+$outputdatafile = "$datadirectory/$outputdatafile";
 open(my $output, '>', "$outputfile") or die "Could not open file '$outputfile' $!";
+open(my $outputdata, '>', "$outputdatafile") or die "Could not open file '$outputdatafile' $!";
+print $outputdata "\"weight\";\"lat\";\"lon\"";
 # Read input files
 foreach my $filename (@files) {
 	chomp($filename);
@@ -304,8 +323,8 @@ my $lowest_weight;
 foreach my $sort (reverse sort keys %sort) {
         my ($weight,$lat,$lon) = split(/,/,$sort);
         $counter++;
-        # stop after the maximum number of heatmap positions is reached:
-        if ($counter >= $max_positions) {
+        # stop after the maximum number of heatmap positions is reached or the weight to low:
+        if (($counter >= $max_positions) || ($weight < 3)){
 		$lowest_weight = $weight;
 		last;
 	}
@@ -315,24 +334,34 @@ print "The highest weight is '$highest_weight' and the lowest weight is '$lowest
 if ($max_weight > $highest_weight){
 	$max_weight = $highest_weight;
 } else {
-	print "Since the highest weight is more the the max weight '$max_weight' the weight of all points will be decreased with a factor ".($max_weight / $highest_weight).".\n";
+	print "Since the highest weight is more the the max weight '$max_weight' the weight of all points will be multiplied with a factor ".($max_weight / $highest_weight).".\n";
 }
 # Proces the positions. Start with the positions that most occured in the flight position data.
 $counter = 0;
 foreach my $sort (reverse sort keys %sort) {
 	my ($weight,$lat,$lon) = split(/,/,$sort);
+	last if ($weight < 3);
 	$weight = int(($max_weight / $highest_weight * $weight) + ($lowest_weight * $max_weight / $highest_weight * (($highest_weight - $weight) / $highest_weight)) + 1); 
 	$counter++;
 	# stop after the maximum number of heatmap positions is reached:
 	last if ($counter >= $max_positions);
 	# print output to file:
 	print $output "{location: new google.maps.LatLng($lat, $lon), weight: $weight},\n";
+	print $outputdata "\n\"$weight\";\"$lat\";\"$lon\"";
 }
 close($output);
+close($outputdata);
 # print a summery of the result:
-print "Output file: $outputfile\n";
+print "\nOutput file with java script code: $outputfile\n";
 my @cmd = `head -n 5 $outputfile`;
 print join("",@cmd);
 print "\n$counter rows with heatmap position data processed!\n\n";
 @cmd = `tail -n 5 $outputfile`;
 print join("",@cmd);
+#
+print "\nOutput file in csv format: $outputdatafile\n";
+@cmd = `head -n 5 $outputdatafile`;
+print join("",@cmd);
+print "\n$counter rows with heatmap position data processed!\n\n";
+@cmd = `tail -n 5 $outputdatafile`;
+print join("",@cmd)."\n";
