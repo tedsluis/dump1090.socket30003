@@ -4,10 +4,11 @@
 #
 #===============================================================================
 # Default setting:
-my $default_max_altitude            = 15000; # specified in the output unit (use 45000 for feet and 15000 for meter)
+my $default_max_altitude_meter      = 12000; # specified in meter
+my $default_max_altitude_feet       = 36000; # specified in feet
 my $default_min_altitude            = "0";   # specified in the output unit
 my $default_number_of_directions    = 1440;  # 
-my $default_number_of_altitudezones = 15;
+my $default_number_of_altitudezones = 24;
 my $default_datadirectory           = "/tmp";
 my $defaultdistanceunit             = "kilometer,kilometer"; # specify input & output unit! kilometer, nauticalmile, mile or meter
 my $defaultaltitudeunit             = "meter,meter";         # specify input & output unit! meter or feet
@@ -123,6 +124,14 @@ if ($error) {
         print "for example: '-distanceunit meter' or '-distanceunit feet,meter'\n";
         exit 1; 
 }
+# Get correct max altitude:
+my $default_max_altitude;
+if ($altitudeunit{'out'} =~ /feet/) {
+	$default_max_altitude = $default_max_altitude_feet;
+} else {
+	$default_max_altitude = $default_max_altitude_meter;
+}
+
 #
 #===============================================================================
 # Check options:
@@ -298,6 +307,7 @@ print "The latitude/longitude location of the antenna is: $antenna_latitude,$ant
 #
 #===============================================================================
 my $diff_altitude  = $max_altitude - $min_altitude;
+$number_of_altitudezones = $number_of_altitudezones - 1;
 my $zone_altitude  = int($diff_altitude / $number_of_altitudezones);
 print "An altitude zone is $zone_altitude $altitudeunit{'out'}.\n";
 
@@ -393,8 +403,10 @@ foreach my $filename (@files) {
 		my $distance = dis($col[$hdr{'distance'}]);
 		# Remove any invalid position bigger than 600km
 		next if ($distance > (600000 * $convertdis{'out'}));
-		# Skip if the altitude is out of range....
-		next if (($altitude < $min_altitude) || ($altitude >= $max_altitude)); 
+		# Lower then min_altitude is the lowest zone:
+		$altitude = $min_altitude if ($altitude < $min_altitude);
+		# Higher then max_altitude is the highest zone:
+		$altitude = $max_altitude if ($altitude > $max_altitude); 
 		# Calculate the altitude zone and direction zone
 		my $altitude_zone  = sprintf("% 5d",int($altitude / $zone_altitude ) * $zone_altitude);
 		#my $direction_zone = sprintf("% 4d",int($col[$hdr{'angle'}] * ($number_of_directions / 360)) / ($number_of_directions / 360));
@@ -428,7 +440,6 @@ print "Number of position processed: $position and positions within range proces
 # convert hsl colors to bgr colors
 sub hsl_to_bgr(@) {
     	my ($h, $s, $l) = @_;
-	print "h=$h,s=$s,l=$l,";
     	my ($r, $g, $b);
     	if ($s == 0){
     		$r = $g = $b = $l;
@@ -448,11 +459,9 @@ sub hsl_to_bgr(@) {
         	$g = hue2rgb($p, $q, $h);
         	$b = hue2rgb($p, $q, $h - 1/3);
     	}
-	print "b=$b,g=$g,r=$r,----->";
     	$r = sprintf("%x",int($r * 255));
 	$g = sprintf("%x",int($g * 255)); 
 	$b = sprintf("%x",int($b * 255));
-	print "b=$b,g=$g,r=$r.\n";
 	return $b.$g.$r;
 }
 #================================================================================
@@ -494,7 +503,6 @@ foreach my $altitude_zone (sort {$a<=>$b} keys %data) {
 	if ($h < 0) {$h = ($h % 360) + 360;} elsif ($h >= 360) {$h = $h % 360;}
         if ($s < 5) {$s = 5;} elsif ($s > 95) {$s = 95;}
         if ($l < 5) {$l = 5;} elsif ($l > 95) {$l = 95;}
-print "altitude_feet=$altitude_feet,altitude_zone=$altitude_zone,";
 	my $kml_color = "ff".hsl_to_bgr($h/360,$s/100,$l/100);
 	# Determine color
 	my $colornumber = $track;
