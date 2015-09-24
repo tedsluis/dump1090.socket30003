@@ -1,36 +1,37 @@
 # dump1090.socket30003
 
-dump1090.socket30003.pl
+socket30003.pl
 * Collects dump1090 flight positions (ADB-S format) using socket 30003 and save them in csv format.
 
-dump1090.socket30003.heatmap.pl
+heatmap.pl
 * Reads the flight positions from files in csv format and creates points for a heatmap.
 * The heatmap shows where planes come very often. It makes common routes visable.
 * Output in csv format and locations in javascript code.
 
-dump1090.socket30003.radar.pl
-* Reads the flight positions from files in csv format and creates a radar view map. 
-* The radar view shows the maximum range of your antenna for every altitude zone.
-* Add KML output support.
+rangeview.pl
+* Reads the flight positions from files in csv format and creates a range/altitude view map. 
+* The range/altitude view shows the maximum range of your antenna for every altitude zone.
+* KML output support.
 
-The output heatmapdata.csv and radarview.kml can be displayed in a modified variant of dump1090-mutability.
+The output heatmapdata.csv and rangeview.kml can be displayed in a modified variant 
+of dump1090-mutability: https://github.com/tedsluis/dump1090
 
-0.1 version / 2015-09-19 / Ted Sluis
+0.1 version / 2015-09-24 / Ted Sluis
 
 Read more about this at:
 http://discussions.flightaware.com/topic35844.html
 
 # Help page dump1090.socket30003.pl
 ````
-This dump1090.socket30003.pl script can retrieve flight data (lat, lon and alt) from
+This socket30003.pl script can retrieve flight data (lat, lon and alt) from
 a dump1090 host using port 30003 and calcutates the distance and angle
 between the antenna and the plane. It will store these values in an 
 output file in csv format (seperated by commas).
 
 This script can run several times simultaneously on one host retrieving
-data from multiple dump1090 instances. Each instance can use the same 
-directories, but they all have their own data, log and pid files. And 
-every day the script will create a new data and log file.
+data from multiple dump1090 instances on different hosts. Each instance 
+can use the same directories, but they all have their own data, log and 
+pid files. And every day the script will create a new data and log file.
 
 A data files contain column headers (with the names of the columns). 
 Columns headers like 'altitude' and 'distance' also contain their unit
@@ -41,13 +42,19 @@ in to the data file. This way it is possible to switch a unit, for
 example from 'meter' to 'kilometer', and other scripts will still be able
 to determine the correct unit type.
 
+By default the position data, a log file and a pid file are written 
+in the /tmp directory in this format:
+  dump1090-<hostname/ip_address>-<YYMMDD>.txt
+  dump1090-<hostname/ip_address>-<YYMMDD>.log
+  dump1090-<hostname/ip_address>.pid
+
 The script can be lauched as a background process. It can be stopped by
 using the -stop parameter or by removing the pid file. When it not 
 running as a background process, it can also be stopped by pressing 
 CTRL-C. The script will write the current data and log entries to the 
 filesystem before exiting...
 
-Syntax: dump1090.socket30003.pl
+Syntax: socket30003.pl
 
 Optional parameters:
 	-peer <peer host>               A dump1090 hostname or IP address. 
@@ -71,21 +78,21 @@ Optional parameters:
 
 Notes: 
 - To launch it as a background process, add '&' or run it from crontab:
-  0 * * * * <path>/dump1090.socket30003.pl
+  0 * * * * <path>/socket30003.pl
   (This command checks if it ran every hour and relauch it if nessesary.)
 - The default values can be changed within the script (in the most upper section).
 - When launched from the commandline it will display the number of positions.
 
 Examples:
-	dump1090.socket30003.pl 
-	dump1090.socket30003.pl -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
-	dump1090.socket30003.pl -log /var/log -data /home/pi -pid /var/run -restart 
-	dump1090.socket30003.pl -peer 192.168.1.10 -stop
+	socket30003.pl 
+	socket30003.pl -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
+	socket30003.pl -log /var/log -data /home/pi -pid /var/run -restart 
+	socket30003.pl -peer 192.168.1.10 -stop
 
 Pay attention: when stopping an instance: Don't forget to specify correct the peer host.
 ````
-# Output dump1090.socket30003.pl
-* Default outputfile: /tmp/dump1090.socket30003.pl-192_168_11_34-150830.txt (dump1090.socket30003.pl-<IP-ADDRESS-PEER>-<date>.txt)
+# Output socket30003.pl
+* Default outputfile: /tmp/dump1090-192_168_11_34-150830.txt (dump1090-<IP-ADDRESS-PEER>-<date>.txt)
 ````
 hex_ident,altitude(meter),latitude,longitude,date,time,angle,distance(kilometer)
 4CA766,11575,51.67790,2.85407,2015/09/05,08:30:23.010,-100.67,159.95
@@ -105,26 +112,29 @@ hex_ident,altitude(feet),latitude,longitude,date,time,angle,distance(meter)
 ````
 note: As you can see it is possible to switch over to different type units for 'altitude' and 'distance'!
 
-# Help page dump1090.socket30003.heatmap.pl
+# Help page heatmap.pl
 ````
-This dump1090.socket30003.heatmap.pl script creates heatmap data 
+This heatmap.pl script creates heatmap data 
 which can be displated in a modified variant of dump1090-mutobility.
 
 It creates two output files:
-1) One file with locations in java script code, which must be added
+1) One file with locations in java script code, which can be added
    to the script.js manualy.
 2) One file with location data in csv format, which can be imported
    from the dump1090 GUI.
 
 Please read this post for more info:
-http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
+http://discussions.flightaware.com/post180185.html#p180185
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl'
-script. It will automaticly use the correct units (feet, meter, 
-kilometer, mile, natical mile)  for 'altitude' and 'distance' when 
+This script uses the output file(s) of the 'socket30003.pl'
+script, which are by default stored in /tmp in this format:
+dump1090-<hostname/ip_address>-YYMMDD.txt
+
+The script will automaticly use the correct units (feet, meter, 
+kilometer, mile, natical mile) for 'altitude' and 'distance' when 
 the input files contain column headers with the unit type between 
 parentheses. When the input files doesn't contain column headers 
-(as produced by older versions of 'dump1090.socket30003.pl' script)
+(as produced by older versions of 'socket30003.pl' script)
 you can specify the units. Otherwise this script will use the 
 default units.
 
@@ -145,8 +155,7 @@ the amount of memory of your system. You can change the default
 number of heatmap positions. You can also set the maximum of 
 'weight' per heatmap position. 
 
-
-Syntax: dump1090.socket30003.heatmap.pl
+Syntax: heatmap.pl
 
 Optional parameters:
 	-data <data directory>          The data files are stored
@@ -175,11 +184,11 @@ note:
 
 
 Examples:
-	dump1090.socket30003.heatmap.pl 
-	dump1090.socket30003.heatmap.pl -data /home/pi
-	dump1090.socket30003.heatmap.pl -lat 52.1 -lon 4.1 -maxposition 50000
+	heatmap.pl 
+	heatmap.pl -data /home/pi
+	heatmap.pl -lat 52.1 -lon 4.1 -maxposition 50000
 ````
-# Output dump1090.socket30003.heatmap.pl
+# Output heatmap.pl
 * Default output file: /tmp/heatmapcode.csv
 ````
 {location: new google.maps.LatLng(51.025, 3.1), weight: 706},
@@ -207,30 +216,32 @@ Examples:
 "641";"51.853";"6.065"
 "609";"51.229";"3.649"
 ````
-# Help page dump1090.socket30003.radar.pl
+# Help page rangeview.pl
 ````
-This dump1090.socket30003.radar.pl script create location data 
-for a radar view which can be displated in a modified variant 
-of dump1090-mutobility.
+This rangeview.pl script creates location data 
+for a range/altitude view which can be displated in a modified 
+fork of dump1090-mutobility.
 
-It creates two output files:
-1) One file with location dat in csv format can be imported
-   in to tools like http://www.gpsvisualizer.com. 
-2) One file with location data in kml format, which can be 
-   imported into a modified dum1090-mutability variant.
+The script creates two output files:
+rangeview.csv) A file with location data in csv format can be 
+   imported in to tools like http://www.gpsvisualizer.com. 
+rangeview.kml) A file with location data in kml format, which
+   can be imported into a modified dum1090-mutability.
 
 Please read this post for more info:
-http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
+http://discussions.flightaware.com/post180185.html#p180185
 
-This script uses the output file(s) of the 
-'dump1090.socket30003.pl' script. It will automaticly use the
-correct units (feet, meter, mile, nautical mile of kilometer)
+This script uses the output file(s) of the 'socket30003.pl'
+script, which are by default stored in /tmp in this format:
+dump1090-<hostname/ip_address>-YYMMDD.txt
+
+It will read the files one by one and it will automaticly use 
+the correct units (feet, meter, mile, nautical mile of kilometer)
 for 'altitude' and 'distance' when the input files contain 
 column headers with the unit type between parentheses. When 
 the input files doesn't contain column headers (as produced 
-by older versions of 'dump1090.socket30003.pl' script) you 
-can specify the units.Otherwise this script will use the 
-default units.
+by older versions of 'socket30003.pl' script) you can specify 
+the units. Otherwise this script will use the default units.
 
 The flight position data is sorted in to altitude zones. For 
 each zone and for each direction the most remote location is 
@@ -238,7 +249,7 @@ saved. The most remote locations per altitude zone will be
 written to a file as a track. 
 
 
-Syntax: dump1090.socket30003.radar.pl
+Syntax: rangeview.pl
 
 Optional parameters:
 	-data <data directory>          The data files are stored 
@@ -279,12 +290,12 @@ Notes:
 - The default values can be changed within the script.
 
 Examples:
-	dump1090.socket30003.radar.pl 
-	dump1090.socket30003.radar.pl -distanceunit kilometer,nauticalmile -altitudeunit meter,feet
-	dump1090.socket30003.radar.pl -data /home/pi
+	rangeview.pl 
+	rangeview.pl -distanceunit kilometer,nauticalmile -altitudeunit meter,feet
+	rangeview.pl -data /home/pi
 ````
-# Output dump1090.socket30003.radar.pl
-* Default output file: /tmp/radar.csv
+# Output rangeview.pl
+* Default output file: /tmp/rangeview.csv
 ````
 type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude(meter),latitude,longitude,date,time,angle,distance(kilometer)
 T,1,Altitude zone 1: 00000- 1000,yellow,1,    0,-575,484575,900,52.08119,5.08568,2015/08/19,15:58:15.725,-143.85,544
@@ -298,7 +309,7 @@ T,0,Altitude zone 1: 00000- 1000,yellow,8,    0,-411,4841D6,967,51.92297,4.35482
 T,0,Altitude zone 1: 00000- 1000,yellow,9,    0,-410,4841D6,761,51.93031,4.37363,2015/09/04,16:56:28.453,-102.72,51
 ````
 
-* Default output file: /tmp/radar.kml
+* Default output file: /tmp/rangeview.kml
 ````
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
