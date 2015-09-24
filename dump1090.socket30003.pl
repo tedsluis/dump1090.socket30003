@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-06
-# Filename : dump1090.socket30003.pl
+# Ted Sluis 2015-09-24
+# Filename : socket30003.pl
 #
 #===============================================================================
 # Default setting:
@@ -151,9 +151,9 @@ between the antenna and the plane. It will store these values in an
 output file in csv format (seperated by commas).
 
 This script can run several times simultaneously on one host retrieving
-data from multiple dump1090 instances. Each instance can use the same 
-directories, but they all have their own data, log and pid files. And 
-every day the script will create a new data and log file.
+data from multiple dump1090 instances on different hosts. Each instance 
+can use the same directories, but they all have their own data, log and 
+pid files. And every day the script will create a new data and log file.
 
 A data files contain column headers (with the names of the columns). 
 Columns headers like 'altitude' and 'distance' also contain their unit
@@ -164,11 +164,20 @@ in to the data file. This way it is possible to switch a unit, for
 example from 'meter' to 'kilometer', and other scripts will still be able
 to determine the correct unit type.
 
+By default the position data, a log file and a pid file are written 
+in the /tmp directory in this format:
+  dump1090-<hostname/ip_address>-<YYMMDD>.txt
+  dump1090-<hostname/ip_address>-<YYMMDD>.log
+  dump1090-<hostname/ip_address>.pid
+
 The script can be lauched as a background process. It can be stopped by
 using the -stop parameter or by removing the pid file. When it not 
 running as a background process, it can also be stopped by pressing 
 CTRL-C. The script will write the current data and log entries to the 
 filesystem before exiting...
+
+More info at:
+http://discussions.flightaware.com/post180185.html#p180185
 
 Syntax: $scriptname
 
@@ -197,7 +206,7 @@ Optional parameters:
 
 Notes: 
 - To launch it as a background process, add '&' or run it from crontab:
-  0 * * * * <path>/dump1090.socket30003.pl
+  0 * * * * <path>/$scriptname
   (This command checks if it ran every hour and relauch it if nessesary.)
 - The default values can be changed within the script (in the most upper section).
 
@@ -415,7 +424,7 @@ my $hostalias = $PEER_HOST;
 $hostalias =~ s/\./_/g if ($hostalias =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
 print "The data directory/file is: $datadirectory/".filedate($hostalias).".txt\n";
 print "The log  directory/file is: $datadirectory/".filedate($hostalias).".log\n";
-my $pidfile = "$piddirectory/$scriptname-$hostalias.pid";
+my $pidfile = "$piddirectory/dump1090-$hostalias.pid";
 # 
 if (-e $pidfile) {
 	# pid file already exists
@@ -554,7 +563,7 @@ while ($message = <$SOCKET>){
 	$flight{$hex_ident}{'message_count'}++;
 	# Compose filedate
   	my ($second,$day,$month,$year,$minute) = (localtime)[0,3,4,5,1];
-	my $filedate = $scriptname.'-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
+	my $filedate = 'dump1090-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
 	# Every second we want to check whether the pid file is still there.
 	if($previous_second ne $second) {
 		$previous_second = $second;

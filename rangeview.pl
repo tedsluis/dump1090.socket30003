@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-17
-# Filename : dump1090.socket30003.radar.pl
+# Ted Sluis 2015-09-24
+# Filename : rangeview.pl
 #
 #===============================================================================
 # Default setting:
@@ -91,7 +91,7 @@ if ($defaultdistanceunit) {
 }
 if ($error) {
         print "The default distance unit '$defaultdistanceunit' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
-        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the radar view output file.\n";
+        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the range/altitude view output file.\n";
         print "for example: '-distanceunit kilometer' or '-distanceunit kilometer,nauticalmile'\n";
         exit 1;
 }
@@ -120,7 +120,7 @@ if ($defaultaltitudeunit) {
 }
 if ($error) {
         print "The default altitude unit '$defaultaltitudeunit' is invalid! It should be one of these: meter or feet.\n";
-        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the radar view output file.\n";
+        print "If you specify two units (seperated by a comma) then the first is for incomming flight position data and the second is for the range/altitude view output file.\n";
         print "for example: '-distanceunit meter' or '-distanceunit feet,meter'\n";
         exit 1; 
 }
@@ -136,28 +136,30 @@ if ($altitudeunit{'out'} =~ /feet/) {
 #===============================================================================
 # Check options:
 if ($help) {
-	print "\nThis $scriptname script create location data 
-for a radar view which can be displated in a modified variant 
-of dump1090-mutobility.
+	print "\nThis $scriptname script creates location data 
+for a range/altitude view which can be displated in a modified 
+fork of dump1090-mutobility.
 
-It creates two output files:
-1) One file with location dat in csv format can be imported
-   in to tools like http://www.gpsvisualizer.com. 
-2) One file with location data in kml format, which can be 
-   imported into a modified dum1090-mutability variant.
+The script creates two output files:
+rangeview.csv) A file with location data in csv format can be 
+   imported in to tools like http://www.gpsvisualizer.com. 
+rangeview.kml) A file with location data in kml format, which
+   can be imported into a modified dum1090-mutability.
 
 Please read this post for more info:
-http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
+http://discussions.flightaware.com/post180185.html#p180185
 
-This script uses the output file(s) of the 
-'dump1090.socket30003.pl' script. It will automaticly use the
-correct units (feet, meter, mile, nautical mile of kilometer)
+This script uses the output file(s) of the 'socket30003.pl'
+script, which are by default stored in /tmp in this format:
+dump1090-<hostname/ip_address>-YYMMDD.txt
+
+It will read the files one by one and it will automaticly use 
+the correct units (feet, meter, mile, nautical mile of kilometer)
 for 'altitude' and 'distance' when the input files contain 
 column headers with the unit type between parentheses. When 
 the input files doesn't contain column headers (as produced 
-by older versions of 'dump1090.socket30003.pl' script) you 
-can specify the units.Otherwise this script will use the 
-default units.
+by older versions of 'socket30003.pl' script) you can specify 
+the units.Otherwise this script will use the default units.
 
 The flight position data is sorted in to altitude zones. For 
 each zone and for each direction the most remote location is 
@@ -169,7 +171,7 @@ Syntax: $scriptname
 Optional parameters:
 	-data <data directory>		    The data files are stored in /tmp by default.
 	-filemask <mask>		    Specify a filemask. 
-	                                    The default filemask is 'dump.socket*.txt'.
+	                                    The default filemask is 'dump*.txt'.
 	-max <altitude>			    Upper limit. Default is '$default_max_altitude $altitudeunit{'out'}'. 
 	                                    Higher values in the input data will be skipped.
 	-min <altitude>			    Lower limit. Default is '$default_min_altitude $altitudeunit{'out'}'. 
@@ -471,10 +473,10 @@ my $kml_filehandle;
 my $trackpoint=0;
 my $track=0;
 my $newtrack;
-print "datafile= $datadirectory/radar.csv\n";
-print "kmlfile= $datadirectory/radar.kml\n";
-open($data_filehandle, '>',"$datadirectory/radar.csv") or die "Unable to open '$datadirectory/radar.csv'!\n";
-open($kml_filehandle, '>',"$datadirectory/radar.kml") or die "Unable to open '$datadirectory/radar.kml'!\n";
+print "datafile= $datadirectory/rangeview.csv\n";
+print "kmlfile= $datadirectory/rangeview.kml\n";
+open($data_filehandle, '>',"$datadirectory/rangeview.csv") or die "Unable to open '$datadirectory/rangeview.csv'!\n";
+open($kml_filehandle, '>',"$datadirectory/rangeview.kml") or die "Unable to open '$datadirectory/rangeview.kml'!\n";
 print $data_filehandle "type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude($altitudeunit{'out'}),latitude,longitude,date,time,angle,distance($distanceunit{'out'})\n";
 print $kml_filehandle "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <kml xmlns=\"http://www.opengis.net/kml/2.2\">

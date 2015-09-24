@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
-# Ted Sluis 2015-09-06-19
-# dump1090.socket30003.heatmap.pl
+# Ted Sluis 2015-09-06-24
+# heatmap.pl
 #
 #===============================================================================
 # Default setting:
@@ -71,14 +71,17 @@ It creates two output files:
    from the dump1090 GUI.
 
 Please read this post for more info:
-http://discussions.flightaware.com/ads-b-flight-tracking-f21/heatmap-for-dump1090-mutability-t35844.html
+http://discussions.flightaware.com/post180185.html#p180185
 
-This script uses the output file(s) of the 'dump1090.socket30003.pl'
-script. It will automaticly use the correct units (feet, meter, 
-kilometer, mile, natical mile)  for 'altitude' and 'distance' when 
+This script uses the output file(s) of the 'socket30003.pl'
+script, which are by default stored in /tmp in this format:
+dump1090-<hostname/ip_address>-YYMMDD.txt
+
+The script will automaticly use the correct units (feet, meter, 
+kilometer, mile, natical mile) for 'altitude' and 'distance' when 
 the input files contain column headers with the unit type between 
 parentheses. When the input files doesn't contain column headers 
-(as produced by older versions of 'dump1090.socket30003.pl' script)
+(as produced by older versions of 'socket30003.pl' script)
 you can specify the units. Otherwise this script will use the 
 default units.
 
