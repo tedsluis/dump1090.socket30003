@@ -248,7 +248,7 @@ print "Using the unit '$defaultdistanceunit' for the distance and '$defaultaltit
 sub filedate(@) {
 	my $hostalias = shift;
 	my ($second,$day,$month,$year,$minute) = (localtime)[0,3,4,5,1];
-	my $filedate = $scriptname.'-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
+	my $filedate = 'dump1090-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
 }
 #
 # Are the specified directories for data, log and pid file writeable?
