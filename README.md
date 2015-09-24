@@ -21,7 +21,7 @@ of dump1090-mutability: https://github.com/tedsluis/dump1090
 Read more about this at:
 http://discussions.flightaware.com/topic35844.html
 
-# Help page dump1090.socket30003.pl
+# Help page socket30003.pl
 ````
 This socket30003.pl script can retrieve flight data (lat, lon and alt) from
 a dump1090 host using port 30003 and calcutates the distance and angle
