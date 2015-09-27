@@ -317,9 +317,9 @@ print "An altitude zone is $zone_altitude $altitudeunit{'out'}.\n";
 my %data;
 # Set default filemask
 if (!$filemask) {
-	$filemask = "dump*.txt" ;
+	$filemask = "'dump*.txt'" ;
 } else {
-	$filemask ="*$filemask*";
+	$filemask ="'*$filemask*'";
 }
 # Find files
 my @files =`find $datadirectory -name $filemask`;

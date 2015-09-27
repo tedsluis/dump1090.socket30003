@@ -207,9 +207,9 @@ print "The heatmap will cover the area of $degrees degree around the antenna, wh
 my %data;
 # Set default filemask
 if (!$filemask) {
-	$filemask = "dump*.txt" ;
+	$filemask = "'dump*.txt'" ;
 } else {
-	$filemask ="*$filemask*";
+	$filemask ="'*$filemask*'";
 }
 # Find files
 my @files =`find $datadirectory -name $filemask`;
