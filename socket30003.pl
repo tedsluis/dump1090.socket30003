@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-24
+# Ted Sluis 2015-12-17
 # Filename : socket30003.pl
 #
 #===============================================================================
@@ -532,20 +532,23 @@ while ($message = <$SOCKET>){
 	}
 	# Split line into colomns:
 	my @col = split /,/,$message;
-	if (@col > 20) {
+	my $hex_ident = $col[$hdr{'hex_ident'}];
+	# Check whether if has enough columns and a hex_ident:
+	if ((@col > 20) && ($hex_ident) && ($hex_ident =~ /^[0-9A-F]+$/i)){
 		$errorcount = 0;
 	} else {
 		$errorcount++;
-		if ($errorcount > 100) {
-			print " messagecount=$message_count,last message='$message'\n";
-			print "Not able to read data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).\n";
+		if (($errorcount == 100) || ($errorcount == 1000)) {
+			# write an error message to the log file after 100 or 1000 incomplete messages in a row:
+			print $log_filehandle "messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'\n";
+		} elsif ($errorcount > 10000) {
+			# Exits the script after 10000 incomplete messages in a row:
+			print $log_filehandle "messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'. Exit script......\n";
+			print "Not able to read proper data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).\n";
 			exit;
 		}
 		next;
 	}
-	my $hex_ident = $col[$hdr{'hex_ident'}];
-	# Skip if no hex_identifier:
-	next if ($hex_ident =~ /^\s*$/);
 	$epochtime = time;
 	# Flight first time seen:
 	if (! exists $flight{$hex_ident}{'lastseen'}) {

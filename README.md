@@ -16,7 +16,7 @@ rangeview.pl
 The output heatmapdata.csv and rangeview.kml can be displayed in a modified variant 
 of dump1090-mutability: https://github.com/tedsluis/dump1090
 
-0.1 version / 2015-09-24 / Ted Sluis
+0.2 version / 2015-12-17 / Ted Sluis
 
 Read more about this at:
 http://discussions.flightaware.com/topic35844.html
