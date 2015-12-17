@@ -640,7 +640,7 @@ while ($message = <$SOCKET>){
 		$flight{$hex_ident}{'lat_loggedtime'} = $loggeddatetime;
 	}
 	# Save Altitude and datetime
-	if ($col[$hdr{'altitude'}] =~ /[123456789]/) {
+	if ($col[$hdr{'altitude'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
 		my $altitude = $col[$hdr{'altitude'}];
 		if ($defaultaltitudeunit =~ /^meter$/) {
 			# save feet as meters:
