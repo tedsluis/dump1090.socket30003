@@ -8,8 +8,9 @@ my $PEER_HOST             = '127.0.0.1'; # The IP address or hostname of the DUM
 my $defaultdatadirectory  = "/tmp";
 my $defaultlogdirectory   = "/tmp";
 my $defaultpiddirectory   = "/tmp";
-my $defaultdistanceunit   = "kilometer"; # kilometer, nauticalmile, mile, meter
-my $defaultaltitudeunit   = "meter";     # meter, feet
+my $defaultdistanceunit   = "kilometer"; # kilometer, nauticalmile, mile or meter.
+my $defaultaltitudeunit   = "meter";     # meter or feet.
+my $defaultspeedunit      = "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
 my $TIME_MESSAGE_MARGIN   = 10;          # max acceptable margin between messages in milliseconds.
 my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
 #
@@ -130,6 +131,7 @@ GetOptions(
 	"help!"=>\$help,
 	"distanceunit=s"=>\$defaultdistanceunit,
 	"altitudeunit=s"=>\$defaultaltitudeunit,
+	"speedunit=s"=>\$defaultspeedunit,
 	"nopositions!"=>\$nopositions,
 	"data=s"=>\$datadirectory,
 	"log=s"=>\$logdirectory,
@@ -156,9 +158,9 @@ can use the same directories, but they all have their own data, log and
 pid files. And every day the script will create a new data and log file.
 
 A data files contain column headers (with the names of the columns). 
-Columns headers like 'altitude' and 'distance' also contain their unit
-between parentheses, for example '3520(feet)' or '12,3(kilometer)'. This
-makes it more easy to parse the columns when using this data in other
+Columns headers like 'altitude', 'distance' and 'ground_speed' also contain
+their unit between parentheses, for example '3520(feet)' or '12,3(kilometer)'.
+This makes it more easy to parse the columns when using this data in other
 scripts. Every time the script is (re)started a header wiil be written 
 in to the data file. This way it is possible to switch a unit, for 
 example from 'meter' to 'kilometer', and other scripts will still be able
@@ -198,10 +200,11 @@ Optional parameters:
 	                                Default distance unit is kilometer.
 	-altitudeunit <unit>	        Type of unit for altitude: meter or feet.
 					Default altitude unit is meter.
+	-speedunit <unit>		Type of unit for ground speed.
+					Default speed unit is kilometers per hour.
         -nopositions                    Does not display the number of position while
-	                                running.
-                                        interactive (launched from commandline).
-	-debug                          Display raw socket messages.
+	                                running interactive (launched from commandline).
+	-debug                          Displays raw socket messages.
 	-help				This help page.
 
 Notes: 
@@ -241,6 +244,17 @@ if ($defaultaltitudeunit) {
 	}
 } else { 
 	$defaultaltitudeunit = "meter";
+}
+# defaultspeedunit
+if ($defaultspeedunit) {
+	if ($defaultspeedunit =~ /^kilometerph$|^mileph$|^knotph$/i) {
+                $defaultspeedunit = lc($defaultspeedunit);
+	} else {
+		print "The default speed unit '$defaultspeedunit' is invalid! It should be one of these: kilometerph, mileph or knotph (ph = per hour).\n";
+                exit 1;
+	}
+} else {
+	$defaultspeedunit = "kilometer";
 }
 print "Using the unit '$defaultdistanceunit' for the distance and '$defaultaltitudeunit' for the altitude.\n";
 #
@@ -591,7 +605,7 @@ while ($message = <$SOCKET>){
     		$data_filehandle->autoflush;
     		$log_filehandle->autoflush;
 		# write header: 
-	        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit)\n";
+	        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit),squawk,ground_speed($defaultspeedunit),track,callsign\n";
 		# reset counters for a new day:
 		$message_count = 1;
 		$position_count = keys %{$flight{$hex_ident}};
@@ -629,6 +643,10 @@ while ($message = <$SOCKET>){
 		# No valid date & time format
 		 next;
 	}
+        # Save callsign
+        if ($col[$hdr{'callsign'}] =~ /[a-z0-9]+/i) {
+        	$flight{$hex_ident}{'callsign'} = $col[$hdr{'callsign'}];
+	}
 	# Save longitude and datetime
 	if ($col[$hdr{'lon'}] =~ /\./) {
 		$flight{$hex_ident}{'lon'} = $col[$hdr{'lon'}];
@@ -651,6 +669,28 @@ while ($message = <$SOCKET>){
 		}
 		$flight{$hex_ident}{'altitude_loggedtime'} = $loggeddatetime;
 	}
+	# Save squawk
+	if ($col[$hdr{'squawk'}] =~ /^\d+$/) {
+		$flight{$hex_ident}{'squawk'} = $col[$hdr{'squawk'}];
+	}
+	# Save track
+	if ($col[$hdr{'track'}] =~ /^\d+\.?\d*$/) {
+		$flight{$hex_ident}{'track'} = $col[$hdr{'track'}];
+	}
+	# Save speed
+	if ($col[$hdr{'ground_speed'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
+		my $speed = $col[$hdr{'ground_speed'}];
+		if ($defaultspeedunit =~ /^mileph$/) {
+			# save knots as miles:
+			$flight{$hex_ident}{'ground_speed'} = int($speed * 1.150779);
+		} elsif ($defaultspeedunit =~ /^kilometerph$/) {
+			# save knots as kilometers
+			$flight{$hex_ident}{'ground_speed'} = int($speed * 1.852);
+		} else {
+			# save as knots as knots
+			$flight{$hex_ident}{'ground_speed'} = int($speed);
+		}
+	}
 	# Be sure that the requiered fields (longitude, latitude and altitude) for this flight are captured:
 	next unless ((exists $flight{$hex_ident}{'lon'}) && (exists $flight{$hex_ident}{'lat'}) && (exists $flight{$hex_ident}{'altitude'})); 
 	# If there is a time difference, calculate the time differences between messages:
@@ -667,6 +707,7 @@ while ($message = <$SOCKET>){
 	next if ((exists $flight{$hex_ident}{'prev_lon_loggedtime'})      && ($flight{$hex_ident}{'lon_loggedtime'}      eq $flight{$hex_ident}{'prev_lon_loggedtime'}) && 
 		 (exists $flight{$hex_ident}{'Prev_lat_loggedtime'})      && ($flight{$hex_ident}{'lat_loggedtime'}      eq $flight{$hex_ident}{'Prev_lat_loggedtime'}) && 
 		 (exists $flight{$hex_ident}{'prev_altitude_loggedtime'}) && ($flight{$hex_ident}{'altitude_loggedtime'} eq $flight{$hex_ident}{'prev_altitude_loggedtime'}));
+	
 	# Count the positions per flight and overall:
 	$flight{$hex_ident}{'position_count'}++;
 	$position_count++;
@@ -674,7 +715,7 @@ while ($message = <$SOCKET>){
 	my $angle = int(angle($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'}) * 100) / 100;
 	my $distance = distance($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'});	
 	# Write the data to the data file:
-	print $data_filehandle "$hex_ident,$flight{$hex_ident}{'altitude'},$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'},$col[$hdr{'logged_date'}],$col[$hdr{'logged_time'}],$angle,$distance\n";
+	print $data_filehandle "$hex_ident,$flight{$hex_ident}{'altitude'},$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'},$col[$hdr{'logged_date'}],$col[$hdr{'logged_time'}],$angle,$distance,".($flight{$hex_ident}{'squawk'}||"").",".($flight{$hex_ident}{'ground_speed'}||"").",".($flight{$hex_ident}{'track'}||"").",".($flight{$hex_ident}{'callsign'}||"")."\n";
 	# Save the values per flight to examine the next position.
 	$flight{$hex_ident}{'prev_lon'}      		= $flight{$hex_ident}{'lon'};
 	$flight{$hex_ident}{'Prev_lat'}      		= $flight{$hex_ident}{'lat'};
