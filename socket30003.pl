@@ -3,18 +3,6 @@
 # Filename : socket30003.pl
 #
 #===============================================================================
-# Default setting:
-my $PEER_HOST             = '127.0.0.1'; # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
-my $defaultdatadirectory  = "/tmp";
-my $defaultlogdirectory   = "/tmp";
-my $defaultpiddirectory   = "/tmp";
-my $defaultdistanceunit   = "kilometer"; # kilometer, nauticalmile, mile or meter.
-my $defaultaltitudeunit   = "meter";     # meter or feet.
-my $defaultspeedunit      = "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
-my $TIME_MESSAGE_MARGIN   = 10;          # max acceptable margin between messages in milliseconds.
-my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
-#
-#===============================================================================
 # This script reads data from a dump1090 instance using port 30003 and writes 
 # longitude, latitude, altitude, hex_indent, date and time to a text file (comma serperated).
 # The script also calculates the angle and distance relative to location of the antenna.
@@ -72,12 +60,19 @@ my ($latitude,$longitude) = (52.085624,5.0890591); # Home location, default (Utr
 # Only ES_SURFACE_POS and ES_AIRBORNE_POS transmissions will have position (latitude and longitude) information.
 #
 #===============================================================================
-use strict;
-use POSIX qw(strftime);
-use Time::Local;
-use IO::Socket;
-use Getopt::Long;
-use File::Basename;
+BEGIN { 
+	use strict;
+	use POSIX qw(strftime);
+	use Time::Local;
+	use IO::Socket;
+	use Getopt::Long;
+	use File::Basename;
+	use Cwd 'abs_path';
+	our $scriptname  = basename($0);
+	our $fullscriptname = abs_path($0);
+	use lib dirname (__FILE__);
+	use common;
+}
 #===============================================================================
 sub InteractiveShellCheck {
     return -t STDIN && -t STDOUT;
@@ -86,7 +81,6 @@ my $interactive = InteractiveShellCheck;
 #===============================================================================
 my $message;
 my $epochtime = time();
-my $scriptname  = basename($0);
 #
 #===============================================================================
 # Ctrl-C interupt handler
@@ -108,6 +102,20 @@ sub intHandler {
 		exit 1;
 	}
 }
+#
+#===============================================================================
+# Read setting from config file
+my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
+my $PEER_HOST             = $setting{'socket30003'}{'PEER_HOST'}       || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
+my $defaultdatadirectory  = $setting{'common'}{'defaultdatadirectory'} || "/tmp";
+my $defaultlogdirectory   = $setting{'common'}{'defaultlogdirectory'}  || "/tmp";
+my $defaultpiddirectory   = $setting{'common'}{'defaultpiddirectory'}  || "/tmp";
+my $defaultdistanceunit   = $setting{'common'}{'defaultdistanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
+my $defaultaltitudeunit   = $setting{'common'}{'defaultaltitudeunit'}  || "meter";       # meter or feet.
+my $defaultspeedunit      = $setting{'common'}{'defaultspeedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
+my $TIME_MESSAGE_MARGIN   = $setting{'common'}{'TIME_MESSAGE_MARGIN'}  || 10;            # max acceptable margin between messages in milliseconds.
+my $latitude              = $setting{'common'}{'latitude'}             || 52.085624;
+my $longitude             = $setting{'common'}{'longitude'}            || 5.0890591;     # Home location, default (Utrecht, The Netherlands)
 #
 #===============================================================================
 # Get options
@@ -256,7 +264,7 @@ if ($defaultspeedunit) {
 } else {
 	$defaultspeedunit = "kilometer";
 }
-print "Using the unit '$defaultdistanceunit' for the distance and '$defaultaltitudeunit' for the altitude.\n";
+print "Using the unit '$defaultdistanceunit' for the distance, '$defaultaltitudeunit' for the altitude and '$defaultspeedunit' for the speed.\n";
 #
 # Compose filedate
 sub filedate(@) {
