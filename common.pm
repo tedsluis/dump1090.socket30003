@@ -24,6 +24,7 @@ sub READCONFIG(@) {
         my $directoryname = dirname($fullscriptname);
 	# path to config file
 	$config = $directoryname.'/'.$config;
+	print "\nReading parameters and values from '$config' config file:\n";
 	if (!-e $config) {
 		print "Can not read config! Config file '$config' does not exists!\n";
 		exit 1;
@@ -42,6 +43,7 @@ sub READCONFIG(@) {
 			# Get section:
 			if ($line =~ /^\s*\[([^\]]+)\]\s*(#.*)?$/) {
 				$section = $1;
+				print "\nSection: [$section]\n" if (($section =~ /common/) || ($scriptname =~ /$section/));
 				next;
 			} elsif ($line =~ /^([^=]+)=([^\#]*)(#.*)?$/) {
 				# Get paramter & value
@@ -59,7 +61,9 @@ sub READCONFIG(@) {
 					exit 1;
 				}
 				# save section, parameter & value
+				next unless (($section =~ /common/) || ($scriptname =~ /$section/));
 				$config{$section}{$parameter} = $value;
+				print "   $parameter = $value\n";
 			} else {
 				# Invalid line:
 				print "The line '$line' in config file '$config' is invalide!\n";
@@ -72,6 +76,7 @@ sub READCONFIG(@) {
 			}
 		}
 	}
+	print "\n";
 	return %config;
-}	
+}
 1;
