@@ -53,11 +53,11 @@ sub READCONFIG(@) {
 				$parameter =~ s/^\s*|\s*$//g;
 				$value     =~ s/^\s*|\s*$//g;
 				if ((!$parameter) || ($parameter =~ /^\s*$/)) {
-					print "The line '$line' in config file '$config' is invalide! No parameter specified!\n";
+					print "The line '$line' in config file '$config' is invalid! No parameter specified!\n";
 					exit 1;
 				}
 				if ((!$section) || ($section =~ /^\s*$/)) {
-					print "The line '$line' in config file '$config' is invalide! No section specified jet!\n";
+					print "The line '$line' in config file '$config' is invalid! No section specified jet!\n";
 					exit 1;
 				}
 				# save section, parameter & value
@@ -66,8 +66,8 @@ sub READCONFIG(@) {
 				print "   $parameter = $value\n";
 			} else {
 				# Invalid line:
-				print "The line '$line' in config file '$config' is invalide!\n";
-				print "Valide lines looks like:\n";
+				print "The line '$line' in config file '$config' is invalid!\n";
+				print "Valid lines looks like:\n";
 				print "# comment line\n";
 				print "[some_section_name]\n";
 				print "parameter=value\n";
