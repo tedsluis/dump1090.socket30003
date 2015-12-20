@@ -4,23 +4,18 @@
 # heatmap.pl
 #
 #===============================================================================
-# Default setting:
-my $default_datadirectory = "/tmp";
-my $outputfile            = "heatmapcode.csv";
-my $outputdatafile	  = "heatmapdata.csv";
-my ($latitude,$longitude) = (52.085624,5.0890591); # Antenna location
-my $degrees               = 5;                     # used to determine boundary of area around antenne.
-my $resolution            = 1000;                  # number of horizontal and vertical positions in output file.
-my $max_positions         = 100000;                # maximum number of positions in the outputfile.
-my $max_weight            = 1000;                  # maximum position weight on the heatmap.
-#
-#===============================================================================
-use strict;
-use POSIX qw(strftime);
-use Time::Local;
-use Getopt::Long;
-use File::Basename;
-my $scriptname  = basename($0);
+BEGIN {
+	use strict;
+	use POSIX qw(strftime);
+	use Time::Local;
+	use Getopt::Long;
+	use File::Basename;
+	use Cwd 'abs_path';
+	our $scriptname  = basename($0);
+        our $fullscriptname = abs_path($0);
+        use lib dirname (__FILE__);
+        use common;
+}
 #
 #===============================================================================
 # Ctrl-C interupt handler
@@ -37,6 +32,19 @@ sub intHandler {
 		print "'$scriptname' is continuing.......\n";
 	}
 }
+#===============================================================================
+# Read settings from config file
+my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
+# Use parameterS & values from the 'heatmap' section. If empty or not-exists, then use from the 'common' section, otherwise script defaults.
+my $default_datadirectory = $setting{'heatmap'}{'defaultdatadirectory'} || $setting{'common'}{'defaultdatadirectory'} || "/tmp";
+my $outputfile            = $setting{'heatmap'}{'outputfile'}           || $setting{'common'}{'outputfile'}           || "heatmapcode.csv";
+my $outputdatafile	  = $setting{'heatmap'}{'outputdatafile'}       || $setting{'common'}{'outputdatafile'}       || "heatmapdata.csv";
+my $latitude              = $setting{'heatmap'}{'latitude'}             || $setting{'common'}{'latitude'}             || 52.085624; # Antenna location
+my $longitude             = $setting{'heatmap'}{'longitude'}            || $setting{'common'}{'longitude'}            || 5.0890591; # 
+my $degrees               = $setting{'heatmap'}{'degrees'}              || 5;        # used to determine boundary of area around antenne.
+my $resolution            = $setting{'heatmap'}{'resolution'}           || 1000;     # number of horizontal and vertical positions in output file.
+my $max_positions         = $setting{'heatmap'}{'max_positions'}        || 100000;   # maximum number of positions in the outputfile.
+my $max_weight            = $setting{'heatmap'}{'max_weight'}           || 1000;     # maximum position weight on the heatmap.
 #
 #===============================================================================
 # Get options
