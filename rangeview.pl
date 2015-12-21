@@ -1,27 +1,22 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-09-24
+# Ted Sluis 2015-12-21
 # Filename : rangeview.pl
 #
 #===============================================================================
-# Default setting:
-my $default_max_altitude_meter      = 12000; # specified in meter
-my $default_max_altitude_feet       = 36000; # specified in feet
-my $default_min_altitude            = "0";   # specified in the output unit
-my $default_number_of_directions    = 1440;  # 
-my $default_number_of_altitudezones = 24;
-my $default_datadirectory           = "/tmp";
-my $defaultdistanceunit             = "kilometer,kilometer"; # specify input & output unit! kilometer, nauticalmile, mile or meter
-my $defaultaltitudeunit             = "meter,meter";         # specify input & output unit! meter or feet
-my ($antenna_latitude,$antenna_longitude) = (52.085624,5.0890591); # Home location, default (Utrecht, The Netherlands)
-#
-#===============================================================================
-use strict;
-use POSIX qw(strftime);
-use Time::Local;
-use Getopt::Long;
-use File::Basename;
-use Math::Complex;
-my $scriptname  = basename($0);
+BEGIN {
+	use strict;
+	use POSIX qw(strftime);
+	use Time::Local;
+	use Getopt::Long;
+	use File::Basename;
+	use Math::Complex;
+        use Cwd 'abs_path';
+        our $scriptname  = basename($0);
+        our $fullscriptname = abs_path($0);
+        use lib dirname (__FILE__);
+        use common;
+	my $scriptname  = basename($0);
+}
 #
 #===============================================================================
 # Ctrl-C interupt handler
@@ -38,6 +33,22 @@ sub intHandler {
 		print "'$scriptname' is continuing.......\n";
 	}
 }
+#===============================================================================
+# Read settings from config file
+my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
+# Use parameters & values from the 'heatmap' section. If empty or not-exists, then use from the 'common' section, otherwise script defaults.
+$default_max_altitude_meter      = $setting{'radarview'}{'default_max_altitude_meter'}      || 12000; # specified in meter
+$default_max_altitude_feet       = $setting{'radarview'}{'default_max_altitude_feet'}       || 36000; # specified in feet
+$default_min_altitude            = $setting{'radarview'}{'default_min_altitude'}            || "0";   # specified in the output unit
+$default_number_of_directions    = $setting{'radarview'}{'default_number_of_directions'}    || 1440;  # 
+$default_number_of_altitudezones = $setting{'radarview'}{'default_number_of_altitudezones'} || 24;
+$default_datadirectory           = $setting{'radarview'}{'defaultdatadirectory'}            || $setting{'common'}{'defaultdatadirectory'} || "/tmp";
+$defaultdistanceunit             =($setting{'radarview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer").','.
+                                  ($setting{'radarview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer"); # specify input & output unit! kilometer, nauticalmile, mile or meter
+$defaultaltitudeunit             =($setting{'radarview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter").','.
+                                  ($setting{'radarview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter");     # specify input & output unit! meter or feet
+$antenna_latitude                = $setting{'radarview'}{'latitude'}                        || $setting{'common'}{'latitude'}             || 52.085624;    # Home location, default (Utrecht, The Netherlands)
+$antenna_longitude               = $setting{'radarview'}{'longitude'}                       || $setting{'common'}{'longitude'}            || 5.0890591; 
 #
 #===============================================================================
 # Get options
@@ -324,10 +335,10 @@ if (!$filemask) {
 # Find files
 my @files =`find $datadirectory -name $filemask`;
 if (@files == 0) {
-	print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
+	print "No files were found in '$datadirectory' that matches with the $filemask filemask!\n";
 	exit 1;
 } else {
-        print "The following files fit with the filemask '$filemask':\n";
+        print "The following files fit with the filemask $filemask:\n";
         my @tmp;
         foreach my $file (@files) {
                 chomp($file);
@@ -337,7 +348,7 @@ if (@files == 0) {
         }
         @files = @tmp;
         if (@files == 0) {
-                print "No files were found in '$datadirectory' that matches with the '$filemask' filemask!\n";
+                print "No files were found in '$datadirectory' that matches with the $filemask filemask!\n";
                 exit 1;
         }
 }
