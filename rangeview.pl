@@ -37,18 +37,18 @@ sub intHandler {
 # Read settings from config file
 my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
 # Use parameters & values from the 'heatmap' section. If empty or not-exists, then use from the 'common' section, otherwise script defaults.
-$default_max_altitude_meter      = $setting{'radarview'}{'default_max_altitude_meter'}      || 12000; # specified in meter
-$default_max_altitude_feet       = $setting{'radarview'}{'default_max_altitude_feet'}       || 36000; # specified in feet
-$default_min_altitude            = $setting{'radarview'}{'default_min_altitude'}            || "0";   # specified in the output unit
-$default_number_of_directions    = $setting{'radarview'}{'default_number_of_directions'}    || 1440;  # 
-$default_number_of_altitudezones = $setting{'radarview'}{'default_number_of_altitudezones'} || 24;
-$default_datadirectory           = $setting{'radarview'}{'defaultdatadirectory'}            || $setting{'common'}{'defaultdatadirectory'} || "/tmp";
-$defaultdistanceunit             =($setting{'radarview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer").','.
-                                  ($setting{'radarview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer"); # specify input & output unit! kilometer, nauticalmile, mile or meter
-$defaultaltitudeunit             =($setting{'radarview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter").','.
-                                  ($setting{'radarview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter");     # specify input & output unit! meter or feet
-$antenna_latitude                = $setting{'radarview'}{'latitude'}                        || $setting{'common'}{'latitude'}             || 52.085624;    # Home location, default (Utrecht, The Netherlands)
-$antenna_longitude               = $setting{'radarview'}{'longitude'}                       || $setting{'common'}{'longitude'}            || 5.0890591; 
+$default_max_altitude_meter      = $setting{'rangeview'}{'default_max_altitude_meter'}      || 12000; # specified in meter
+$default_max_altitude_feet       = $setting{'rangeview'}{'default_max_altitude_feet'}       || 36000; # specified in feet
+$default_min_altitude            = $setting{'rangeview'}{'default_min_altitude'}            || "0";   # specified in the output unit
+$default_number_of_directions    = $setting{'rangeview'}{'default_number_of_directions'}    || 1440;  # 
+$default_number_of_altitudezones = $setting{'rangeview'}{'default_number_of_altitudezones'} || 24;
+$default_datadirectory           = $setting{'rangeview'}{'defaultdatadirectory'}            || $setting{'common'}{'defaultdatadirectory'} || "/tmp";
+$defaultdistanceunit             =($setting{'rangeview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer").','.
+                                  ($setting{'rangeview'}{'defaultdistanceunit'}             || $setting{'common'}{'defaultdistanceunit'}  || "kilometer"); # specify input & output unit! kilometer, nauticalmile, mile or meter
+$defaultaltitudeunit             =($setting{'rangeview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter").','.
+                                  ($setting{'rangeview'}{'defaultaltitudeunit'}             || $setting{'common'}{'defaultaltitudeunit'}  || "meter");     # specify input & output unit! meter or feet
+$antenna_latitude                = $setting{'rangeview'}{'latitude'}                        || $setting{'common'}{'latitude'}             || 52.085624;    # Home location, default (Utrecht, The Netherlands)
+$antenna_longitude               = $setting{'rangeview'}{'longitude'}                       || $setting{'common'}{'longitude'}            || 5.0890591; 
 #
 #===============================================================================
 # Get options
