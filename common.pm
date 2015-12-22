@@ -211,6 +211,9 @@ sub LOGverbose(@){
 #===============================================================================
 sub LOG(@) {
 	#
+	# Write messages to log file and display.
+	# Adds alert color to Debug messages, Errors and Warnings.
+	#
         # first field must be log file.
         # second field must be message.
         # third field informational or error.
@@ -276,7 +279,7 @@ sub LOG(@) {
 	# 
         return if $type eq "H";
         # Write message to display
-        if (((($type =~ /L/) && ($verbose)) || ($type =~ /[EIDW]/)) && ($interactive)) {
+        if (($interactive) && ((($type =~ /L/) && ($verbose)) || ($type =~ /[EIDW]/))) {
         	print $text."\n";
         }
 	# Store Errors & Warnings
