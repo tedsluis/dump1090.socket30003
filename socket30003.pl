@@ -74,49 +74,12 @@ BEGIN {
 	use common;
 }
 #===============================================================================
-sub InteractiveShellCheck {
-    return -t STDIN && -t STDOUT;
-}
-my $interactive = InteractiveShellCheck;
-#===============================================================================
+my $logfile ="";
 my $message;
 my $epochtime = time();
-#
-#===============================================================================
-# Ctrl-C interupt handler
-my $interrupted = 0;
-$SIG{'INT'} = \&intHandler;
-
-sub intHandler {
-	# Someone pressed Ctrl-C
-	if (($message)||(($epochtime+2) >time)) {
-		print "\nYou pressed CTRL-C. Do you want to exit? (y/n)\n";
-        	my $answer = <STDIN>;
-        	if ($answer =~ /^y$/i) {
-    			$interrupted = "The script was interrupted by CTRL-C!";
-		} else {
-			print "'$scriptname' continues...\n";
-		}
-	} else {
-		print "\nYou pressed CTRL-C. $scriptname' is interrupted!\n";
-		exit 1;
-	}
-}
-#
-#===============================================================================
-# Read setting from config file
-my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
-my $PEER_HOST             = $setting{'socket30003'}{'PEER_HOST'}       || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
-my $defaultdatadirectory  = $setting{'common'}{'defaultdatadirectory'} || "/tmp";
-my $defaultlogdirectory   = $setting{'common'}{'defaultlogdirectory'}  || "/tmp";
-my $defaultpiddirectory   = $setting{'common'}{'defaultpiddirectory'}  || "/tmp";
-my $defaultdistanceunit   = $setting{'common'}{'defaultdistanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
-my $defaultaltitudeunit   = $setting{'common'}{'defaultaltitudeunit'}  || "meter";       # meter or feet.
-my $defaultspeedunit      = $setting{'common'}{'defaultspeedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
-my $TIME_MESSAGE_MARGIN   = $setting{'common'}{'TIME_MESSAGE_MARGIN'}  || 10;            # max acceptable margin between messages in milliseconds.
-my $latitude              = $setting{'common'}{'latitude'}             || 52.085624;
-my $longitude             = $setting{'common'}{'longitude'}            || 5.0890591;     # Home location, default (Utrecht, The Netherlands)
-#
+my $defaultdistanceunit;
+my $defaultaltitudeunit;
+my $defaultspeedunit;
 #===============================================================================
 # Get options
 my $restart;
@@ -131,7 +94,8 @@ my $time_message_margin;
 my $lon;
 my $lat;
 my $nopositions;
-my $debug;
+my $debug = 0;
+my $verbose = 0;
 GetOptions(
 	"restart!"=>\$restart,
 	"stop!"=>\$stop,
@@ -148,8 +112,62 @@ GetOptions(
 	"msgmargin=s"=>\$time_message_margin,
 	"longitude=s"=>\$lon,
 	"latitude=s"=>\$lat,
-	"debug!"=>\$debug
+	"debug!"=>\$debug,
+	"verbose!"=>\$verbose
 ) or exit(1);
+#
+#===============================================================================
+# if '-debug' parameter is used, set debug mode:
+common->setdebug if ($debug);
+#
+#===============================================================================
+# if '-verbose' parameter is used, set verbose mode:
+common->LOGverbose if ($verbose);
+#
+#===============================================================================
+# Checks if script runs interactive.
+my $interactive = common->InteractiveShellCheck;
+#
+#===============================================================================
+# Log routine
+sub LOG(@){
+        common->LOG($logfile,@_);
+}
+#
+#===============================================================================
+# Ctrl-C interupt handler
+my $interrupted = 0;
+$SIG{'INT'} = \&intHandler;
+# 
+sub intHandler {
+	# Someone pressed Ctrl-C
+	if (($message)||(($epochtime+2) >time)) {
+		LOG("You pressed CTRL-C. Do you want to exit? (y/n)","W");
+        	my $answer = <STDIN>;
+        	if ($answer =~ /^y$/i) {
+    			$interrupted = "The script was interrupted by CTRL-C!";
+		} else {
+			LOG("'$scriptname' continues...","I");
+		}
+	} else {
+		LOG("You pressed CTRL-C. $scriptname' is interrupted!","W");
+		exit 1;
+	}
+}
+#
+#===============================================================================
+# Read settings from config file
+my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
+my $PEER_HOST             = $setting{'socket30003'}{'PEER_HOST'}       || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
+my $defaultdatadirectory  = $setting{'common'}{'defaultdatadirectory'} || "/tmp";
+my $defaultlogdirectory   = $setting{'common'}{'defaultlogdirectory'}  || "/tmp";
+my $defaultpiddirectory   = $setting{'common'}{'defaultpiddirectory'}  || "/tmp";
+my $TIME_MESSAGE_MARGIN   = $setting{'common'}{'TIME_MESSAGE_MARGIN'}  || 10;            # max acceptable margin between messages in milliseconds.
+my $latitude              = $setting{'common'}{'latitude'}             || 52.085624;
+my $longitude             = $setting{'common'}{'longitude'}            || 5.0890591;     # Home location, default (Utrecht, The Netherlands)
+   $defaultdistanceunit   = $defaultdistanceunit || $setting{'common'}{'defaultdistanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
+   $defaultaltitudeunit   = $defaultaltitudeunit || $setting{'common'}{'defaultaltitudeunit'}  || "meter";       # meter or feet.
+   $defaultspeedunit      = $defaultspeedunit    || $setting{'common'}{'defaultspeedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
 #
 #===============================================================================
 # Check options:
@@ -213,6 +231,7 @@ Optional parameters:
         -nopositions                    Does not display the number of position while
 	                                running interactive (launched from commandline).
 	-debug                          Displays raw socket messages.
+	-verbose                        Displays verbose log messages.
 	-help				This help page.
 
 Notes: 
@@ -236,7 +255,7 @@ if ($defaultdistanceunit) {
 	if ($defaultdistanceunit =~ /^kilometer$|^nauticalmile$|^mile$|^meter$/i) {
 		$defaultdistanceunit = lc($defaultdistanceunit);
 	} else {
-		print "The default distance unit '$defaultdistanceunit' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.\n";
+		LOG("The default distance unit '$defaultdistanceunit' is invalid! It should be one of these: kilometer, nauticalmile, mile or meter.","E");
 		exit 1;
 	}
 } else { 
@@ -247,7 +266,7 @@ if ($defaultaltitudeunit) {
 	if ($defaultaltitudeunit =~ /^meter$|^feet$/i) {
 		$defaultaltitudeunit = lc($defaultaltitudeunit);
 	} else {
-		print "The default altitude unit '$defaultaltitudeunit' is invalid! It should be one of these: meter or feet.\n";
+		LOG("The default altitude unit '$defaultaltitudeunit' is invalid! It should be one of these: meter or feet.","E");
 		exit 1;
 	}
 } else { 
@@ -258,13 +277,13 @@ if ($defaultspeedunit) {
 	if ($defaultspeedunit =~ /^kilometerph$|^mileph$|^knotph$/i) {
                 $defaultspeedunit = lc($defaultspeedunit);
 	} else {
-		print "The default speed unit '$defaultspeedunit' is invalid! It should be one of these: kilometerph, mileph or knotph (ph = per hour).\n";
+		LOG("The default speed unit '$defaultspeedunit' is invalid! It should be one of these: kilometerph, mileph or knotph (ph = per hour).","E");
                 exit 1;
 	}
 } else {
 	$defaultspeedunit = "kilometer";
 }
-print "Using the unit '$defaultdistanceunit' for the distance, '$defaultaltitudeunit' for the altitude and '$defaultspeedunit' for the speed.\n";
+LOG("Using the unit '$defaultdistanceunit' for the distance, '$defaultaltitudeunit' for the altitude and '$defaultspeedunit' for the speed.","I");
 #
 # Compose filedate
 sub filedate(@) {
@@ -276,17 +295,17 @@ sub filedate(@) {
 # Are the specified directories for data, log and pid file writeable?
 $datadirectory = $defaultdatadirectory if (!$datadirectory);
 if (!-w $datadirectory) {
-	print "You have no write permissions in data directory '$datadirectory'!\n";
+	LOG("You have no write permissions in data directory '$datadirectory'!","E");
 	exit 1;
 }
 $logdirectory = $defaultlogdirectory if (!$logdirectory);
 if (!-w $logdirectory) {
-        print "You have no write permissions in log directory '$logdirectory'!\n";
+        LOG("You have no write permissions in log directory '$logdirectory'!","E");
         exit 1;
 }
 $piddirectory = $defaultpiddirectory if (!$piddirectory);
 if (!-w $logdirectory) {
-        print "You have no write permissions in pid directory '$piddirectory'!\n";
+        LOG("You have no write permissions in pid directory '$piddirectory'!","E");
         exit 1;
 }
 # Was a hostname specified?
@@ -301,32 +320,32 @@ foreach my $output (@ping) {
 	}
 }
 if (!$result) {
-	print "Unable to connect to peer host '$PEER_HOST'!\n";
+	LOG("Unable to connect to peer host '$PEER_HOST'!","E");
 	exit 1;
 } else {
-	print "Trying to connect to peer host '$PEER_HOST'...\n";
+	LOG("Trying to connect to peer host '$PEER_HOST'...","I");
 }
 # Was a time message margin specified?
 $TIME_MESSAGE_MARGIN = $time_message_margin if ($time_message_margin);
 if (($TIME_MESSAGE_MARGIN < 1) || ($TIME_MESSAGE_MARGIN > 2000)) {
-	print "The specified 'message margin' ($TIME_MESSAGE_MARGIN) is out of range!\n";
-	print "Try something between '1' and '2000' milliseconds! The default is 10ms\n";
+	LOG("The specified 'message margin' ($TIME_MESSAGE_MARGIN) is out of range!","E");
+	LOG("Try something between '1' and '2000' milliseconds! The default is 10ms","E");
 	exit 1;
 }
 # longitude & latitude
 $longitude = $lon if ($lon);
 $longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
-	print "The specified longitude '$longitude' is invalid!\n";
+	LOG("The specified longitude '$longitude' is invalid!","E");
 	exit 1;
 }
 $latitude = $lat if ($lat);
 $latitude =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
-	print"The specified latitude '$latitude' is invalid!\n";
+	LOG("The specified latitude '$latitude' is invalid!","E");
 	exit 1;
 }
-print "The antenna latitude & longitude are: '$latitude','$longitude'\n";
+LOG("The antenna latitude & longitude are: '$latitude','$longitude'","I");
 #
 #===============================================================================
 # Socket that reads data from the PEER_HOST over port 30003.
@@ -337,9 +356,9 @@ do {
  		                        PeerPort => '30003',
                                         Proto    => 'tcp');
 	if ($@) {
-		print "Error trying to connect to '$PEER_HOST', port 30003 (tcp): '$@'.\n";
+		LOG("Error trying to connect to '$PEER_HOST', port 30003 (tcp): '$@'.","E");
 	} else {
-		print "Connected to '$PEER_HOST', port 30003 (tcp).\n";
+		LOG("Connected to '$PEER_HOST', port 30003 (tcp).","I");
 	}
 } while (!$SOCKET);
 #
@@ -444,8 +463,8 @@ sub Check_pid(@){
 # Compose pid file
 my $hostalias = $PEER_HOST;
 $hostalias =~ s/\./_/g if ($hostalias =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-print "The data directory/file is: $datadirectory/".filedate($hostalias).".txt\n";
-print "The log  directory/file is: $datadirectory/".filedate($hostalias).".log\n";
+LOG("The data directory/file is: $datadirectory/".filedate($hostalias).".txt","I");
+LOG("The log  directory/file is: $datadirectory/".filedate($hostalias).".log","I");
 my $pidfile = "$piddirectory/dump1090-$hostalias.pid";
 # 
 if (-e $pidfile) {
@@ -453,70 +472,70 @@ if (-e $pidfile) {
 	my $pid = Check_pid($pidfile);
 	if ($status) {
 		if ($pid) {
-			print "'$scriptname' ($pid) is running!\n";
+			LOG("'$scriptname' ($pid) is running!","I");
 		} else {
-			print "'$scriptname' is not running!\n";	
+			LOG("'$scriptname' is not running!","I");	
 		}
 		exit;
 	} elsif ($restart) {
 		if ($pid) {
-                        print "'$scriptname' ($pid) is running!\n";
+                        LOG("'$scriptname' ($pid) is running!","I");
 			unlink($pidfile);
 			if (-e $pidfile) {
-				print "Unable to remove '$pidfile' ($pid)! '$scriptname' is not restarting....\n";
+				LOG("Unable to remove '$pidfile' ($pid)! '$scriptname' is not restarting....","E");
 				exit 1;
 			}
-			print "Stopping '$scriptname' ($pid)....\n";
+			LOG("Stopping '$scriptname' ($pid)....","I");
 			sleep 2;
 		} else { 
-			print "'$scriptname' is not running!\n";
+			LOG("'$scriptname' is not running!","W");
 		}
-		print "Starting '$scriptname'....\n"; 
+		LOG("Starting '$scriptname'....","I"); 
 	} elsif ($stop) {
 		if ($pid) {
-                        print "'$scriptname' ($pid) is running!\n";
+                        LOG("'$scriptname' ($pid) is running!"."I");
                 } else {
-                        print "'$scriptname' is not running!\n";
+                        LOG("'$scriptname' is not running!","W");
 			exit 1;
                 }
                 unlink($pidfile);
 		if (-e $pidfile) {
-			print "Unable to remove '$pidfile' ($pid)! '$scriptname' is not stopping.....\n";
+			LOG("Unable to remove '$pidfile' ($pid)! '$scriptname' is not stopping.....","E");
                         exit 1;
 		}
-		print "Stopping '$scriptname' ($pid)....\n";
+		LOG("Stopping '$scriptname' ($pid)....","I");
 		sleep 2;
 		exit 0;
 	} else {
 		if ($pid) {
-			print "Unable to start '$scriptname'. '$scriptname' ($pid) is already running!\n";
+			LOG("Unable to start '$scriptname'. '$scriptname' ($pid) is already running!","W");
 			exit 1;
                 } else {
-                        print "'$scriptname' will be started!\n";
+                        LOG("'$scriptname' will be started!","I");
                 }
 	}
 } else {
 	# There is no pid file
 	if ($status) {
-		print "'$scriptname' is not running!\n";
+		LOG("'$scriptname' is not running!","I");
 		exit 0;
 	} elsif ($restart) {
-		print "'$scriptname' was not running, but it is starting now!\n";
+		LOG("'$scriptname' was not running, but it is starting now!","W");
 	} elsif ($stop) {
-		print "'$scriptname' was not running....\n";
+		LOG("'$scriptname' was not running....","W");
 		exit 1;
 	} else {
-		print "Starting '$scriptname'....\n";
+		LOG("Starting '$scriptname'....","I");
 	}
 }
 # Create pid file with pid number inside.
 my $pid =$$;
 my @cmd =`echo $pid > $pidfile`;
 if (! -e $pidfile) {
-	print "Unable to create '$pidfile'! '$scriptname' ($pid) is not starting....\n";
+	LOG("Unable to create '$pidfile'! '$scriptname' ($pid) is not starting....","W");
 	exit 1;
 } else {
-	print "'$scriptname' ($pid) is started!\nUsing pidfile $pidfile.\n";
+	LOG("'$scriptname' ($pid) is started! Using pidfile $pidfile.","I");
 }
 #
 #===============================================================================
@@ -525,7 +544,6 @@ my $previous_date ="";
 my $previous_minute = 0;
 my $previous_second = 0;
 my $data_filehandle;
-my $log_filehandle;
 my $message_count = 0;
 my $position_count = 0;
 my $flight_count = 0;
@@ -547,9 +565,9 @@ while ($message = <$SOCKET>){
   	chomp($message);
 	if ($debug) {
 		if ($message) {
-			print " messagecount=$message_count,message='$message'\n";	
+			LOG("messagecount=$message_count,message='$message'","D");	
 		} else {
-			print " messagecount=$message_count,message=''\n";
+			LOG("messagecount=$message_count,message=''","W");
 		}
 	}
 	# Split line into colomns:
@@ -562,11 +580,11 @@ while ($message = <$SOCKET>){
 		$errorcount++;
 		if (($errorcount == 100) || ($errorcount == 1000)) {
 			# write an error message to the log file after 100 or 1000 incomplete messages in a row:
-			print $log_filehandle "messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'\n";
+			LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'","L");
 		} elsif ($errorcount > 10000) {
 			# Exits the script after 10000 incomplete messages in a row:
-			print $log_filehandle "messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'. Exit script......\n";
-			print "Not able to read proper data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).\n";
+			LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'. Exit script......","E");
+			LOG("Not able to read proper data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).","E");
 			exit;
 		}
 		next;
@@ -603,15 +621,13 @@ while ($message = <$SOCKET>){
 		# Close files if they were open:
 		if ($previous_date ne "") {
 			close $data_filehandle;
-			close $log_filehandle;
 		}
 		# Set newfile date:
   		$previous_date=$filedate;
 		# Open files 
     		open($data_filehandle, '>>',"$datadirectory/$filedate.txt") or die "Unable to open '$datadirectory/$filedate.txt'!\n";
-    		open($log_filehandle,  '>>',"$logdirectory/$filedate.log")  or die "Unable to open '$logdirectory/$filedate.txt'!\n";
+    		$logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
     		$data_filehandle->autoflush;
-    		$log_filehandle->autoflush;
 		# write header: 
 	        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit),squawk,ground_speed($defaultspeedunit),track,callsign\n";
 		# reset counters for a new day:
@@ -623,20 +639,19 @@ while ($message = <$SOCKET>){
 	if (($minute ne $previous_minute) || ($interrupted)) {
 		$previous_minute = $minute;
 		# Log overall statistics:
-		print $log_filehandle "current number of flights=".scalar(keys %flight).",epoch=".epoch2date($epochtime).",message_count=$message_count,position_count=$position_count,flight_count=$flight_count.\n"; 
+		LOG("current number of flights=".scalar(keys %flight).",epoch=".epoch2date($epochtime).",message_count=$message_count,position_count=$position_count,flight_count=$flight_count.","L"); 
 		foreach my $hex_ident (keys %flight) {
 			# check if flight was not seen for longer than 120 secondes:
 			next unless ((($flight{$hex_ident}{'lastseen'} + 120) < $epochtime) || ($interrupted));
 			# Set position_count zero if there are no positions for this flight.
 			$flight{$hex_ident}{'position_count'} = 0 if (! exists $flight{$hex_ident}{'position_count'});
 			# Log flight statistics:
-			print $log_filehandle "removed:$hex_ident,first seen=".epoch2date($flight{$hex_ident}{'firstseen'}).",last seen=".epoch2date($flight{$hex_ident}{'lastseen'}).",message_count=$flight{$hex_ident}{'message_count'},position_count=$flight{$hex_ident}{'position_count'}.\n"; 
+			LOG("removed:$hex_ident,first seen=".epoch2date($flight{$hex_ident}{'firstseen'}).",last seen=".epoch2date($flight{$hex_ident}{'lastseen'}).",message_count=$flight{$hex_ident}{'message_count'},position_count=$flight{$hex_ident}{'position_count'}.","L"); 
 			# remove flight information (and prevent unnessesary memory usage).
 			delete $flight{$hex_ident};
 		}
 		if ($interrupted) {
-			print $log_filehandle "Exit: $interrupted\n";			
-			print "\nExit: $interrupted\n";			
+			LOG("Exit: $interrupted","I");			
 			exit;
 		}
 	}
