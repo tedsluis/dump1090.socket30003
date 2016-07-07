@@ -89,11 +89,11 @@ my $help;
 my $datadirectory;
 my $logdirectory;
 my $piddirectory;
-my $peerhost;
-my $time_message_margin;
-my $lon;
-my $lat;
-my $nopositions;
+my $PEER_HOST;
+my $TIME_MESSAGE_MARGIN;
+my $longitude;
+my $latitude;
+my $showpositions;
 my $debug = 0;
 my $verbose = 0;
 GetOptions(
@@ -104,17 +104,18 @@ GetOptions(
 	"distanceunit=s"=>\$defaultdistanceunit,
 	"altitudeunit=s"=>\$defaultaltitudeunit,
 	"speedunit=s"=>\$defaultspeedunit,
-	"nopositions!"=>\$nopositions,
+	"showpositions!"=>\$showpositions,
 	"data=s"=>\$datadirectory,
 	"log=s"=>\$logdirectory,
 	"pid=s"=>\$piddirectory,
-	"peer=s"=>\$peerhost,
-	"msgmargin=s"=>\$time_message_margin,
-	"longitude=s"=>\$lon,
-	"latitude=s"=>\$lat,
+	"peer=s"=>\$PEER_HOST,
+	"msgmargin=s"=>\$TIME_MESSAGE_MARGIN,
+	"longitude=s"=>\$longitude,
+	"latitude=s"=>\$latitude,
 	"debug!"=>\$debug,
 	"verbose!"=>\$verbose
 ) or exit(1);
+$showpositions = "yes" if ($showpositions);
 #
 #===============================================================================
 # if '-debug' parameter is used, set debug mode:
@@ -158,16 +159,17 @@ sub intHandler {
 #===============================================================================
 # Read settings from config file
 my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
-my $PEER_HOST             = $setting{'socket30003'}{'PEER_HOST'}           || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
-my $TIME_MESSAGE_MARGIN   = $setting{'socket30003'}{'TIME_MESSAGE_MARGIN'} || 10;            # max acceptable margin between messages in milliseconds.
-my $defaultdatadirectory  = $setting{'socket30003'}{'datadirectory'}       || $setting{'common'}{'datadirectory'} || "/tmp";
-my $defaultlogdirectory   = $setting{'socket30003'}{'logdirectory'}        || $setting{'common'}{'logdirectory'}  || "/tmp";
-my $defaultpiddirectory   = $setting{'socket30003'}{'piddirectory'}        || $setting{'common'}{'piddirectory'}  || "/tmp";
-my $latitude              = $setting{'socket30003'}{'latitude'}            || $setting{'common'}{'latitude'}      || 52.085624; # Home location, default (Utrecht, The Netherlands)
-my $longitude             = $setting{'socket30003'}{'longitude'}           || $setting{'common'}{'longitude'}     || 5.0890591;     
-   $defaultdistanceunit   = $defaultdistanceunit || $setting{'socket30003'}{'distanceunit'} || $setting{'common'}{'distanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
-   $defaultaltitudeunit   = $defaultaltitudeunit || $setting{'socket30003'}{'altitudeunit'} || $setting{'common'}{'altitudeunit'}  || "meter";       # meter or feet.
-   $defaultspeedunit      = $defaultspeedunit    || $setting{'socket30003'}{'speedunit'}    || $setting{'common'}{'speedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
+$PEER_HOST           = $PEER_HOST           || $setting{'socket30003'}{'PEER_HOST'} || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
+$TIME_MESSAGE_MARGIN = $TIME_MESSAGE_MARGIN || $setting{'socket30003'}{'TIME_MESSAGE_MARGIN'} || 10;            # max acceptable margin between messages in milliseconds.
+$datadirectory       = $datadirectory       || $setting{'socket30003'}{'datadirectory'}|| $setting{'common'}{'datadirectory'} || "/tmp";
+$logdirectory        = $logdirectory        || $setting{'socket30003'}{'logdirectory'} || $setting{'common'}{'logdirectory'}  || "/tmp";
+$piddirectory        = $piddirectory        || $setting{'socket30003'}{'piddirectory'} || $setting{'common'}{'piddirectory'}  || "/tmp";
+$latitude            = $latitude            || $setting{'socket30003'}{'latitude'}     || $setting{'common'}{'latitude'}      || 52.085624; # Home location, default (Utrecht, The Netherlands)
+$longitude           = $longitude           || $setting{'socket30003'}{'longitude'}    || $setting{'common'}{'longitude'}     || 5.0890591;     
+$defaultdistanceunit = $defaultdistanceunit || $setting{'socket30003'}{'distanceunit'} || $setting{'common'}{'distanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
+$defaultaltitudeunit = $defaultaltitudeunit || $setting{'socket30003'}{'altitudeunit'} || $setting{'common'}{'altitudeunit'}  || "meter";       # meter or feet.
+$defaultspeedunit    = $defaultspeedunit    || $setting{'socket30003'}{'speedunit'}    || $setting{'common'}{'speedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
+$showpositions       = $showpositions       || $setting{'socker30003'}{'showpositions'}|| "no"; # show the number of processed positions while running interactive.
 #
 #===============================================================================
 # Check options:
@@ -185,10 +187,11 @@ pid files. And every day the script will create a new data and log file.
 
 A data files contain column headers (with the names of the columns). 
 Columns headers like 'altitude', 'distance' and 'ground_speed' also contain
-their unit between parentheses, for example '3520(feet)' or '12,3(kilometer)'.
+their unit between parentheses, for example 'altitude(feet)', 
+'distance(kilometer)' or 'ground_speed(mileph).
 This makes it more easy to parse the columns when using this data in other
-scripts. Every time the script is (re)started a header wiil be written 
-in to the data file. This way it is possible to switch a unit, for 
+scripts. Every time the script is (re)started a header will be written 
+in to the data file. This way it is possible to switch a unit type, for 
 example from 'meter' to 'kilometer', and other scripts will still be able
 to determine the correct unit type.
 
@@ -198,7 +201,7 @@ By default the position data, log files and pid file(s) will be stored in this f
   dump1090-<hostname/ip_address>.pid
 
 The script can be lauched as a background process. It can be stopped by
-using the -stop parameter or by removing the pid file. When it not 
+using the -stop parameter or by removing the pid file. When it is not 
 running as a background process, it can also be stopped by pressing 
 CTRL-C. The script will write the current data and log entries to the 
 filesystem before exiting...
@@ -209,42 +212,47 @@ http://discussions.flightaware.com/post180185.html#p180185
 Syntax: $scriptname
 
 Optional parameters:
-	-peer <peer host>		A dump1090 hostname or IP address. 
-					De default is the localhost, $PEER_HOST.
-	-restart			Restart the script.
-	-stop				Stop a running script.
-	-status				Display status.
-	-data <data directory>		The data files are stored in $defaultdatadirectory by default.
-	-log  <log directory>		The log file is stored in $defaultlogdirectory by default.
-	-pid  <pid directory>		The pid file is stored in $defaultpiddirectory by default.
-	-msgmargin <max message margin> The max message margin. The default is $TIME_MESSAGE_MARGIN ms.
-	-lon <lonitude>			Location of your antenna.
-	-lat <latitude>
-	-distanceunit <unit>            Type of unit for distance: kilometer, 
-	                                nauticalmile, mile or meter
-	                                Default distance unit is $defaultdistanceunit.
-	-altitudeunit <unit>	        Type of unit for altitude: meter or feet.
-					Default altitude unit is $defaultaltitudeunit.
-	-speedunit <unit>		Type of unit for ground speed.
-					Default speed unit is $defaultspeedunit.
-        -nopositions                    Does not display the number of position while
-	                                running interactive (launched from commandline).
-	-debug                          Displays raw socket messages.
-	-verbose                        Displays verbose log messages.
-	-help				This help page.
+  -peer <peer host>        A dump1090 hostname or IP address. 
+                           De default is the localhost, '$PEER_HOST'.
+  -restart                 Restart the script.
+  -stop                    Stop a running script.
+  -status                  Display status.
+  -data <data directory>   The data files are stored in 
+                           '$datadirectory' by default.
+  -log  <log directory>    The log file is stored in 
+                           '$logdirectory' by default.
+  -pid  <pid directory>    The pid file is stored in 
+                           '$piddirectory' by default.
+  -msgmargin <max message  The max message margin. The default
+                           is '$TIME_MESSAGE_MARGIN' ms.
+  -lon <lonitude>          Location of your antenna.
+  -lat <latitude>
+  -distanceunit <unit>     Type of unit for distance: kilometer, 
+                           nauticalmile, mile or meter
+                           Default distance unit is '$defaultdistanceunit'.
+  -altitudeunit <unit>     Type of unit for altitude: meter or feet.
+                           Default altitude unit is '$defaultaltitudeunit'.
+  -speedunit <unit>        Type of unit for ground speed.
+                           Default speed unit is '$defaultspeedunit'.
+  -showpositions           Show the number of processed positions
+                           while running interactive (launched from 
+                           commandline). The default is '$showpositions'.
+  -debug                   Displays raw socket messages.
+  -verbose                 Displays verbose log messages.
+  -help                    This help page.
 
 Notes: 
-        - To launch it as a background process, add '&' or run it from crontab:
-          0 * * * * $fullscriptname
-          (This command checks if it ran every hour and relauch it if nessesary.)
-        - The default values can be changed within the config file 'socket30003.cfg',
-          section [common] and/or [socker30003].
-  
+  - To launch it as a background process, add '&' or run it from crontab:
+    0 * * * * $fullscriptname
+    (This command checks if it ran every hour and relauch it if nessesary.)
+  - The default values can be changed within the config file 'socket30003.cfg',
+    section [common] and/or [socker30003].
+ 
 Examples:
-	$scriptname 
-	$scriptname -log /var/log -data /home/pi -pid /var/run -restart &
-	$scriptname -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
-	$scriptname -peer 192.168.1.10 -stop
+  $scriptname 
+  $scriptname -log /var/log -data /home/pi -pid /var/run -restart &
+  $scriptname -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
+  $scriptname -peer 192.168.1.10 -stop
 
 Pay attention: to stop an instance: Don't forget to specify the same peer host.\n\n";
 	exit;
@@ -292,23 +300,19 @@ sub filedate(@) {
 }
 #
 # Are the specified directories for data, log and pid file writeable?
-$datadirectory = $defaultdatadirectory if (!$datadirectory);
 if (!-w $datadirectory) {
 	LOG("You have no write permissions in data directory '$datadirectory'!","E");
 	exit 1;
 }
-$logdirectory = $defaultlogdirectory if (!$logdirectory);
 if (!-w $logdirectory) {
         LOG("You have no write permissions in log directory '$logdirectory'!","E");
         exit 1;
 }
-$piddirectory = $defaultpiddirectory if (!$piddirectory);
-if (!-w $logdirectory) {
+if (!-w $piddirectory) {
         LOG("You have no write permissions in pid directory '$piddirectory'!","E");
         exit 1;
 }
 # Was a hostname specified?
-$PEER_HOST = $peerhost if ($peerhost);
 # Test peer host:
 my @ping =`ping -w 4 -c 1 $PEER_HOST`;
 my $result;
@@ -325,20 +329,17 @@ if (!$result) {
 	LOG("Trying to connect to peer host '$PEER_HOST'...","I");
 }
 # Was a time message margin specified?
-$TIME_MESSAGE_MARGIN = $time_message_margin if ($time_message_margin);
 if (($TIME_MESSAGE_MARGIN < 1) || ($TIME_MESSAGE_MARGIN > 2000)) {
 	LOG("The specified 'message margin' ($TIME_MESSAGE_MARGIN) is out of range!","E");
 	LOG("Try something between '1' and '2000' milliseconds! The default is 10ms","E");
 	exit 1;
 }
 # longitude & latitude
-$longitude = $lon if ($lon);
 $longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified longitude '$longitude' is invalid!","E");
 	exit 1;
 }
-$latitude = $lat if ($lat);
 $latitude =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified latitude '$latitude' is invalid!","E");
@@ -462,8 +463,6 @@ sub Check_pid(@){
 # Compose pid file
 my $hostalias = $PEER_HOST;
 $hostalias =~ s/\./_/g if ($hostalias =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
-LOG("The data directory/file is: $datadirectory/".filedate($hostalias).".txt","I");
-LOG("The log  directory/file is: $logdirectory/".filedate($hostalias).".log","I");
 my $pidfile = "$piddirectory/dump1090-$hostalias.pid";
 # 
 if (-e $pidfile) {
@@ -492,7 +491,7 @@ if (-e $pidfile) {
 		LOG("Starting '$scriptname'....","I"); 
 	} elsif ($stop) {
 		if ($pid) {
-                        LOG("'$scriptname' ($pid) is running!"."I");
+                        LOG("'$scriptname' ($pid) is running!","I");
                 } else {
                         LOG("'$scriptname' is not running!","W");
 			exit 1;
@@ -625,6 +624,7 @@ while ($message = <$SOCKET>){
   		$previous_date=$filedate;
 		# Open files 
     		open($data_filehandle, '>>',"$datadirectory/$filedate.txt") or die "Unable to open '$datadirectory/$filedate.txt'!\n";
+		LOG("The data directory/file is: '$datadirectory/$filedate.txt'","I");
     		$logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
     		$data_filehandle->autoflush;
 		# write header: 
@@ -746,7 +746,7 @@ while ($message = <$SOCKET>){
         $flight{$hex_ident}{'Prev_lat_loggedtime'}      = $flight{$hex_ident}{'lat_loggedtime'};
         $flight{$hex_ident}{'prev_altitude_loggedtime'} = $flight{$hex_ident}{'altitude_loggedtime'};
 	# Display statistics when running interactive:
-	if (($interactive) && (!$nopositions)) {
+	if (($interactive) && ($showpositions) && ($showpositions =~ /yes/)) {
 		my $back = length "positions:".$position_count;
                 print "positions:".$position_count, substr "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
 	}

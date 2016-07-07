@@ -38,9 +38,15 @@ sub intHandler {
 # Get options
 my $help;
 my $datadirectory;
+my $logdirectory;
+my $outputdirectory;
+my $outputdatafile;
+my $override;
+my $timestamp;
+my $sequencenumber,
 my $filemask;
-my $lon;
-my $lat;
+my $longitude;
+my $latitude;
 my $max_positions;
 my $resolution;
 my $degrees;
@@ -52,8 +58,14 @@ GetOptions(
 	"help!"=>\$help,
 	"filemask=s"=>\$filemask,
 	"data=s"=>\$datadirectory,
-        "longitude=s"=>\$lon,
-        "latitude=s"=>\$lat,
+	"log=s"=>\$logdirectory,
+	"output=s"=>\$outputdirectory,
+	"file=s"=>\$outputdatafile,
+	"override!"=>\$override,
+	"timestamp!"=>\$timestamp,
+        "sequencenumber!"=>\$sequencenumber,
+        "longitude=s"=>\$longitude,
+        "latitude=s"=>\$latitude,
 	"maxpositions=s"=>\$max_positions,
 	"resolution=s"=>\$resolution,
 	"degrees=s"=>\$degrees,
@@ -61,6 +73,10 @@ GetOptions(
         "debug!"=>\$debug,
         "verbose!"=>\$verbose
 ) or exit(1);
+#
+$override        = "yes" if ($override);
+$timestamp       = "yes" if ($timestamp);
+$sequencenumber  = "yes" if ($sequencenumber);
 #
 #===============================================================================
 # if '-debug' parameter is used, set debug mode:
@@ -84,14 +100,20 @@ sub LOG(@){
 # Read settings from config file
 my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
 # Use parameters & values from the 'heatmap' section. If empty or not-exists, then use from the 'common' section, otherwise script defaults.
-my $default_datadirectory = $setting{'heatmap'}{'defaultdatadirectory'} || $setting{'common'}{'defaultdatadirectory'} || "/tmp";
-my $outputdatafile	  = $setting{'heatmap'}{'outputdatafile'}       || $setting{'common'}{'outputdatafile'}       || "heatmapdata.csv";
-my $latitude              = $setting{'heatmap'}{'latitude'}             || $setting{'common'}{'latitude'}             || 52.085624; # Antenna location
-my $longitude             = $setting{'heatmap'}{'longitude'}            || $setting{'common'}{'longitude'}            || 5.0890591; # 
-   $degrees               = $degrees       || $setting{'heatmap'}{'degrees'}      || 5;        # used to determine boundary of area around antenne.
-   $resolution            = $resolution    || $setting{'heatmap'}{'resolution'}   || 1000;     # number of horizontal and vertical positions in output file.
-   $max_positions         = $max_positions || $setting{'heatmap'}{'max_positions'}|| 100000;   # maximum number of positions in the outputfile.
-   $max_weight            = $max_weight    || $setting{'heatmap'}{'max_weight'}   || 1000;     # maximum position weight on the heatmap.
+$datadirectory  = $datadirectory   || $setting{'heatmap'}{'datadirectory'}   || $setting{'common'}{'datadirectory'}   || "/tmp";
+$logdirectory   = $logdirectory    || $setting{'heatmap'}{'logdirectory'}    || $setting{'common'}{'logdirectory'}    || "/tmp";
+$outputdirectory= $outputdirectory || $setting{'heatmap'}{'outputdirectory'} || $setting{'common'}{'outputdirectory'} || "/tmp";
+$latitude       = $latitude        || $setting{'heatmap'}{'latitude'}        || $setting{'common'}{'latitude'}        || 52.085624; # Antenna location
+$longitude      = $longitude       || $setting{'heatmap'}{'longitude'}       || $setting{'common'}{'longitude'}       || 5.0890591; # 
+$filemask       = $filemask        || $setting{'heatmap'}{'filemask'}        || $setting{'common'}{'filemask'}        || "dump*txt";
+$override       = $override        || $setting{'heatmap'}{'override'}        || $setting{'common'}{'override'}        || "no";  # override output file if exists.
+$timestamp      = $timestamp       || $setting{'heatmap'}{'timestamp'}       || $setting{'common'}{'timestamp'}       || "no"; # add timestamp to output file name.
+$sequencenumber = $sequencenumber  || $setting{'heatmap'}{'sequencenumber'}  || $setting{'common'}{'sequencenumber'}  || "no"; # add sequence number to output file name.
+$outputdatafile = $outputdatafile  || $setting{'heatmap'}{'outputdatafile'}  || "heatmapdata.csv";
+$degrees        = $degrees         || $setting{'heatmap'}{'degrees'}         || 5;        # used to determine boundary of area around antenne.
+$resolution     = $resolution      || $setting{'heatmap'}{'resolution'}      || 1000;     # number of horizontal and vertical positions in output file.
+$max_positions  = $max_positions   || $setting{'heatmap'}{'max_positions'}   || 100000;   # maximum number of positions in the outputfile.
+$max_weight     = $max_weight      || $setting{'heatmap'}{'max_weight'}      || 1000;     # maximum position weight on the heatmap.
 #
 #===============================================================================
 # Check options:
@@ -99,14 +121,14 @@ if ($help) {
 	print "\nThis $scriptname script creates heatmap data 
 which can be displated in a modified variant of dump1090-mutobility.
 
-It create a output file with location data in csv format, which can 
+It creates an output file with location data in csv format, which can 
 be imported using the dump1090 GUI.
 
 Please read this post for more info:
 http://discussions.flightaware.com/post180185.html#p180185
 
-This script uses the output file(s) of the 'socket30003.pl'
-script, which are by default stored in /tmp in this format:
+This script uses the data file(s) created by the 'socket30003.pl'
+script, which are by default stored in '$outputdirectory' in this format:
 dump1090-<hostname/ip_address>-YYMMDD.txt
 
 The script will automaticly use the correct units (feet, meter, 
@@ -114,20 +136,20 @@ kilometer, mile, natical mile) for 'altitude' and 'distance' when
 the input files contain column headers with the unit type between 
 parentheses. When the input files doesn't contain column headers 
 (as produced by older versions of 'socket30003.pl' script)
-you can specify the units. Otherwise this script will use the 
-default units.
+you can specify the units using startup parameters or in the config
+file. Otherwise this script will use the default units.
 
 This script will create a heatmap of a square area around your 
 antenna. You can change the default range by specifing the number
-of degrees -/+ to your antenna locations. This area will be devided
-in to small squares. The default heatmap has a resolution of 
-1000 x 1000 squares. The script will read all the flight position 
-data from the input file(s) and count the times they match with a 
-square on the heatmap. 
+of degrees -/+ to your antenna locations. (The default values will
+probably satisfy.) This area will be devided in to small squares. 
+The default heatmap has a resolution of 1000 x 1000 squares. 
+The script will read all the flight position data from the source
+file(s) and count the times they match with a square on the heatmap. 
 
 The more positions match with a particular square on the heatmap, 
 the more the 'weight' that heatmap position gets. We use only the 
-squares with the most matches (most 'weight) 'to create the heatmap.
+squares with the most matches (most 'weight) to create the heatmap.
 This is because the map in the browser gets to slow when you use 
 too much positions in the heatmap. Of cource this also depends on 
 the amount of memory of your system. You can change the default 
@@ -137,32 +159,60 @@ number of heatmap positions. You can also set the maximum of
 Syntax: $scriptname
 
 Optional parameters:
-	-data <data directory>          The data files are stored in /tmp by default.
-	-filemask <mask>                Specify a filemask. The default filemask is 'dump*.txt'.
-        -lon <lonitude>                 Location of your antenna.
-        -lat <latitude>
-	-maxpositions <max positions>   Default is 100000 positions.
-	-maxweight <number>		Maximum position weight on the heatmap. The default is 1000.
-	-resolution <number>            Number of horizontal and vertical positions in output file.
-	                                Default is 1000, which means 1000x1000 positions.
-	-degrees <number>               To determine boundaries of area around the antenna.
-	                                (lat-degree <--> lat+degree) x (lon-degree <--> lon+degree)
-	                                De default is 5 degree.
-
-        -debug                          Displays raw socket messages.
-        -verbose                        Displays verbose log messages.
-	-help				This help page.
+  -data <data directory>  The data files are stored in
+                          '$datadirectory' by default.
+  -log <log directory>    The data files are stored in 
+                          '$logdirectory' by default.
+  -output <output         The data files are stored in 
+          directory>      '$outputdirectory' by default.
+  -file <filename>        The output file name. 
+                          '$outputdatafile' by default.
+  -filemask <mask>        Specify a filemask for the source data. 
+                          The default filemask is '$filemask'.
+  -override               Override output file if exists. 
+                          Default is '$override'.
+  -timestamp              Add timestamp to output file name. 
+                          Default is '$timestamp'.
+  -sequencenumber         Add sequence number to output file name. 
+                          Default is '$sequencenumber'.
+  -lon <lonitude>         Location of your antenna.
+  -lat <latitude>
+  -maxpositions <max      Maximum spots in the heatmap. Default is
+             positions>   '$max_positions' positions.
+  -maxweight <number>     Maximum position weight. The default is 
+                          '$max_weight'.
+  -resolution <number>    Number of horizontal and vertical positions
+                          in output file. Default is '$resolution', 
+                          which means '${resolution}x${resolution}' positions.
+  -degrees <number>       To determine boundaries of area around the
+                          antenna. (lat-degree <--> lat+degree) x 
+                          (lon-degree <--> lon+degree)
+                          De default is '$degrees' degree.
+  -debug                  Displays raw socket messages.
+  -verbose                Displays verbose log messages.
+  -help                   This help page.
 
 note: 
-         The default values can be changed within the config file 'socket30003.cfg'.
-
+  The default values can be changed within the config file 
+  'socket30003.cfg', section [common] and section [heatmap]. 
 
 Examples:
-	$scriptname 
-	$scriptname -data /home/pi
-	$scriptname -lat 52.1 -lon 4.1 -maxposition 50000\n\n";
+  $scriptname 
+  $scriptname -data /home/pi -log /var/log 
+  $scriptname -lat 52.1 -lon 4.1 -maxposition 50000\n\n";
 	exit 0;
 }
+#===============================================================================
+# Is the log directory writeable?
+if (!-w $logdirectory) {
+        LOG("The directory does not exists or you have no write permissions in log directory '$logdirectory'!","E");
+        exit 1;
+}
+# Set log file path and name
+my ($second,$day,$month,$year,$minute,$hour) = (localtime)[0,3,4,5,1,2];
+my $filedate = 'heatmap-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
+$logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
+#
 #===============================================================================
 # Resolution, Degrees & Factor
 if ($resolution) {
@@ -206,23 +256,23 @@ if ($max_weight) {
 } else {
         $max_weight = 1000;
 }
-LOG("The maximum position weight on the heatmap will be not more then '$max_weight'.","I");
+LOG("The maximum position weight will be not more then '$max_weight'.","I");
 #=============================================================================== 
-# Are the specified directories for data, log and pid file writeable?
-$datadirectory = $default_datadirectory if (!$datadirectory);
-if (!-w $datadirectory) {
-	LOG("The directory does not exists or you have no write permissions in data directory '$datadirectory'!","E");
-	exit 1;
+# Is the specified directories for the output file writeable?
+if (!-w $outputdirectory) {
+        LOG("The directory does not exists or you have no write permissions in output directory '$outputdirectory'!","E");
+        exit 1;
 }
+# Set output file
+$outputdatafile = common->SetOutput($outputdirectory,$outputdatafile,$override,$timestamp,$sequencenumber);
+#
 #===============================================================================
 # longitude & latitude
-$longitude = $lon if ($lon);
 $longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified longitude '$longitude' is invalid!","E");
 	exit 1;
 }
-$latitude = $lat if ($lat);
 $latitude  =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified latitude '$latitude' is invalid!","E");
@@ -239,7 +289,13 @@ LOG("The resolution op the heatmap will be ${resolution}x${resolution}.","I");
 LOG("The antenna latitude & longitude are: '$latitude','$longitude'.","I");
 LOG("The heatmap will cover the area of $degrees degree around the antenna, which is between latitude $lat1 - $lat2 and longitude $lon1 - $lon2.","I");
 #===============================================================================
+# Get source data from data directory
 my %data;
+# Is the source directory readable?
+if (!-r $datadirectory) {
+	LOG("The directory does not exists or you have no read permissions in data directory '$datadirectory'!","E");
+	exit 1;
+}
 # Set default filemask
 if (!$filemask) {
 	$filemask = "'dump*.txt'" ;
@@ -249,10 +305,10 @@ if (!$filemask) {
 # Find files
 my @files =`find $datadirectory -name $filemask`;
 if (@files == 0) {
-	LOG("No files were found in '$datadirectory' that matches with the '$filemask' filemask!","E");
+	LOG("No files were found in directory '$datadirectory' that matches with the $filemask filemask!","E");
 	exit 1;
 } else {
-	LOG("The following files fit with the filemask '$filemask':","I");
+	LOG("The following files in directory '$datadirectory' fit with the filemask $filemask:","I");
 	my @tmp;
 	foreach my $file (@files) {
 		chomp($file);
@@ -268,7 +324,8 @@ if (@files == 0) {
 }
 #===============================================================================
 my %pos;
-$outputdatafile = "$datadirectory/$outputdatafile";
+my $lat;
+my $lon;
 open(my $outputdata, '>', "$outputdatafile") or die "Could not open file '$outputdatafile' $!";
 print $outputdata "\"weight\";\"lat\";\"lon\"";
 # Read input files
@@ -389,4 +446,5 @@ foreach my $sort (reverse sort keys %sort) {
 	print $outputdata "\n\"$weight\";\"$lat\";\"$lon\"";
 }
 close($outputdata);
+chmod(0666,$outputdata);
 LOG("$counter rows with heatmap position data processed!","I");
