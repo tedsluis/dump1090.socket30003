@@ -64,7 +64,7 @@ BEGIN {
 	use strict;
 	use POSIX qw(strftime);
 	use Time::Local;
-	use IO::Socket;
+	use Socket; # For constants like AF_INET and SOCK_STREAM
 	use Getopt::Long;
 	use File::Basename;
 	use Cwd 'abs_path';
@@ -89,11 +89,11 @@ my $help;
 my $datadirectory;
 my $logdirectory;
 my $piddirectory;
-my $PEER_HOST;
-my $TIME_MESSAGE_MARGIN;
-my $longitude;
-my $latitude;
-my $showpositions;
+my $peerhost;
+my $time_message_margin;
+my $lon;
+my $lat;
+my $nopositions;
 my $debug = 0;
 my $verbose = 0;
 GetOptions(
@@ -104,18 +104,17 @@ GetOptions(
 	"distanceunit=s"=>\$defaultdistanceunit,
 	"altitudeunit=s"=>\$defaultaltitudeunit,
 	"speedunit=s"=>\$defaultspeedunit,
-	"showpositions!"=>\$showpositions,
+	"nopositions!"=>\$nopositions,
 	"data=s"=>\$datadirectory,
 	"log=s"=>\$logdirectory,
 	"pid=s"=>\$piddirectory,
-	"peer=s"=>\$PEER_HOST,
-	"msgmargin=s"=>\$TIME_MESSAGE_MARGIN,
-	"longitude=s"=>\$longitude,
-	"latitude=s"=>\$latitude,
+	"peer=s"=>\$peerhost,
+	"msgmargin=s"=>\$time_message_margin,
+	"longitude=s"=>\$lon,
+	"latitude=s"=>\$lat,
 	"debug!"=>\$debug,
 	"verbose!"=>\$verbose
 ) or exit(1);
-$showpositions = "yes" if ($showpositions);
 #
 #===============================================================================
 # if '-debug' parameter is used, set debug mode:
@@ -159,17 +158,16 @@ sub intHandler {
 #===============================================================================
 # Read settings from config file
 my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
-$PEER_HOST           = $PEER_HOST           || $setting{'socket30003'}{'PEER_HOST'} || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
-$TIME_MESSAGE_MARGIN = $TIME_MESSAGE_MARGIN || $setting{'socket30003'}{'TIME_MESSAGE_MARGIN'} || 10;            # max acceptable margin between messages in milliseconds.
-$datadirectory       = $datadirectory       || $setting{'socket30003'}{'datadirectory'}|| $setting{'common'}{'datadirectory'} || "/tmp";
-$logdirectory        = $logdirectory        || $setting{'socket30003'}{'logdirectory'} || $setting{'common'}{'logdirectory'}  || "/tmp";
-$piddirectory        = $piddirectory        || $setting{'socket30003'}{'piddirectory'} || $setting{'common'}{'piddirectory'}  || "/tmp";
-$latitude            = $latitude            || $setting{'socket30003'}{'latitude'}     || $setting{'common'}{'latitude'}      || 52.085624; # Home location, default (Utrecht, The Netherlands)
-$longitude           = $longitude           || $setting{'socket30003'}{'longitude'}    || $setting{'common'}{'longitude'}     || 5.0890591;     
-$defaultdistanceunit = $defaultdistanceunit || $setting{'socket30003'}{'distanceunit'} || $setting{'common'}{'distanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
-$defaultaltitudeunit = $defaultaltitudeunit || $setting{'socket30003'}{'altitudeunit'} || $setting{'common'}{'altitudeunit'}  || "meter";       # meter or feet.
-$defaultspeedunit    = $defaultspeedunit    || $setting{'socket30003'}{'speedunit'}    || $setting{'common'}{'speedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
-$showpositions       = $showpositions       || $setting{'socker30003'}{'showpositions'}|| "no"; # show the number of processed positions while running interactive.
+my $PEER_HOST             = $setting{'socket30003'}{'PEER_HOST'}           || '127.0.0.1';   # The IP address or hostname of the DUMP1090 host. A Dump1090 on a local host can be addressed with 127.0.0.1
+my $TIME_MESSAGE_MARGIN   = $setting{'socket30003'}{'TIME_MESSAGE_MARGIN'} || 10;            # max acceptable margin between messages in milliseconds.
+my $defaultdatadirectory  = $setting{'socket30003'}{'datadirectory'}       || $setting{'common'}{'datadirectory'} || "/tmp";
+my $defaultlogdirectory   = $setting{'socket30003'}{'logdirectory'}        || $setting{'common'}{'logdirectory'}  || "/tmp";
+my $defaultpiddirectory   = $setting{'socket30003'}{'piddirectory'}        || $setting{'common'}{'piddirectory'}  || "/tmp";
+my $latitude              = $setting{'socket30003'}{'latitude'}            || $setting{'common'}{'latitude'}      || 52.085624; # Home location, default (Utrecht, The Netherlands)
+my $longitude             = $setting{'socket30003'}{'longitude'}           || $setting{'common'}{'longitude'}     || 5.0890591;     
+   $defaultdistanceunit   = $defaultdistanceunit || $setting{'socket30003'}{'distanceunit'} || $setting{'common'}{'distanceunit'}  || "kilometer";   # kilometer, nauticalmile, mile or meter.
+   $defaultaltitudeunit   = $defaultaltitudeunit || $setting{'socket30003'}{'altitudeunit'} || $setting{'common'}{'altitudeunit'}  || "meter";       # meter or feet.
+   $defaultspeedunit      = $defaultspeedunit    || $setting{'socket30003'}{'speedunit'}    || $setting{'common'}{'speedunit'}     || "kilometerph"; # kilometerph, knotph or mileph (ph = per hour). 
 #
 #===============================================================================
 # Check options:
@@ -187,11 +185,10 @@ pid files. And every day the script will create a new data and log file.
 
 A data files contain column headers (with the names of the columns). 
 Columns headers like 'altitude', 'distance' and 'ground_speed' also contain
-their unit between parentheses, for example 'altitude(feet)', 
-'distance(kilometer)' or 'ground_speed(mileph).
+their unit between parentheses, for example '3520(feet)' or '12,3(kilometer)'.
 This makes it more easy to parse the columns when using this data in other
-scripts. Every time the script is (re)started a header will be written 
-in to the data file. This way it is possible to switch a unit type, for 
+scripts. Every time the script is (re)started a header wiil be written 
+in to the data file. This way it is possible to switch a unit, for 
 example from 'meter' to 'kilometer', and other scripts will still be able
 to determine the correct unit type.
 
@@ -201,7 +198,7 @@ By default the position data, log files and pid file(s) will be stored in this f
   dump1090-<hostname/ip_address>.pid
 
 The script can be lauched as a background process. It can be stopped by
-using the -stop parameter or by removing the pid file. When it is not 
+using the -stop parameter or by removing the pid file. When it not 
 running as a background process, it can also be stopped by pressing 
 CTRL-C. The script will write the current data and log entries to the 
 filesystem before exiting...
@@ -212,47 +209,42 @@ http://discussions.flightaware.com/post180185.html#p180185
 Syntax: $scriptname
 
 Optional parameters:
-  -peer <peer host>        A dump1090 hostname or IP address. 
-                           De default is the localhost, '$PEER_HOST'.
-  -restart                 Restart the script.
-  -stop                    Stop a running script.
-  -status                  Display status.
-  -data <data directory>   The data files are stored in 
-                           '$datadirectory' by default.
-  -log  <log directory>    The log file is stored in 
-                           '$logdirectory' by default.
-  -pid  <pid directory>    The pid file is stored in 
-                           '$piddirectory' by default.
-  -msgmargin <max message  The max message margin. The default
-                           is '$TIME_MESSAGE_MARGIN' ms.
-  -lon <lonitude>          Location of your antenna.
-  -lat <latitude>
-  -distanceunit <unit>     Type of unit for distance: kilometer, 
-                           nauticalmile, mile or meter
-                           Default distance unit is '$defaultdistanceunit'.
-  -altitudeunit <unit>     Type of unit for altitude: meter or feet.
-                           Default altitude unit is '$defaultaltitudeunit'.
-  -speedunit <unit>        Type of unit for ground speed.
-                           Default speed unit is '$defaultspeedunit'.
-  -showpositions           Show the number of processed positions
-                           while running interactive (launched from 
-                           commandline). The default is '$showpositions'.
-  -debug                   Displays raw socket messages.
-  -verbose                 Displays verbose log messages.
-  -help                    This help page.
+	-peer <peer host>		A dump1090 hostname or IP address. 
+					De default is the localhost, $PEER_HOST.
+	-restart			Restart the script.
+	-stop				Stop a running script.
+	-status				Display status.
+	-data <data directory>		The data files are stored in $defaultdatadirectory by default.
+	-log  <log directory>		The log file is stored in $defaultlogdirectory by default.
+	-pid  <pid directory>		The pid file is stored in $defaultpiddirectory by default.
+	-msgmargin <max message margin> The max message margin. The default is $TIME_MESSAGE_MARGIN ms.
+	-lon <lonitude>			Location of your antenna.
+	-lat <latitude>
+	-distanceunit <unit>            Type of unit for distance: kilometer, 
+	                                nauticalmile, mile or meter
+	                                Default distance unit is $defaultdistanceunit.
+	-altitudeunit <unit>	        Type of unit for altitude: meter or feet.
+					Default altitude unit is $defaultaltitudeunit.
+	-speedunit <unit>		Type of unit for ground speed.
+					Default speed unit is $defaultspeedunit.
+        -nopositions                    Does not display the number of position while
+	                                running interactive (launched from commandline).
+	-debug                          Displays raw socket messages.
+	-verbose                        Displays verbose log messages.
+	-help				This help page.
 
 Notes: 
-  - To launch it as a background process, add '&' or run it from crontab:
-    0 * * * * $fullscriptname
-    (This command checks if it ran every hour and relauch it if nessesary.)
-  - The default values can be changed within the config file 'socket30003.cfg',
-    section [common] and/or [socker30003].
- 
+        - To launch it as a background process, add '&' or run it from crontab:
+          0 * * * * $fullscriptname
+          (This command checks if it ran every hour and relauch it if nessesary.)
+        - The default values can be changed within the config file 'socket30003.cfg',
+          section [common] and/or [socker30003].
+  
 Examples:
-  $scriptname 
-  $scriptname -log /var/log -data /home/pi -pid /var/run -restart &
-  $scriptname -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
-  $scriptname -peer 192.168.1.10 -stop
+	$scriptname 
+	$scriptname -log /var/log -data /home/pi -pid /var/run -restart &
+	$scriptname -peer 192.168.1.10 -nopositions -distanceunit nauticalmile -altitudeunit feet &
+	$scriptname -peer 192.168.1.10 -stop
 
 Pay attention: to stop an instance: Don't forget to specify the same peer host.\n\n";
 	exit;
@@ -300,19 +292,23 @@ sub filedate(@) {
 }
 #
 # Are the specified directories for data, log and pid file writeable?
+$datadirectory = $defaultdatadirectory if (!$datadirectory);
 if (!-w $datadirectory) {
 	LOG("You have no write permissions in data directory '$datadirectory'!","E");
 	exit 1;
 }
+$logdirectory = $defaultlogdirectory if (!$logdirectory);
 if (!-w $logdirectory) {
         LOG("You have no write permissions in log directory '$logdirectory'!","E");
         exit 1;
 }
-if (!-w $piddirectory) {
+$piddirectory = $defaultpiddirectory if (!$piddirectory);
+if (!-w $logdirectory) {
         LOG("You have no write permissions in pid directory '$piddirectory'!","E");
         exit 1;
 }
 # Was a hostname specified?
+$PEER_HOST = $peerhost if ($peerhost);
 # Test peer host:
 my @ping =`ping -w 4 -c 1 $PEER_HOST`;
 my $result;
@@ -329,38 +325,26 @@ if (!$result) {
 	LOG("Trying to connect to peer host '$PEER_HOST'...","I");
 }
 # Was a time message margin specified?
+$TIME_MESSAGE_MARGIN = $time_message_margin if ($time_message_margin);
 if (($TIME_MESSAGE_MARGIN < 1) || ($TIME_MESSAGE_MARGIN > 2000)) {
 	LOG("The specified 'message margin' ($TIME_MESSAGE_MARGIN) is out of range!","E");
 	LOG("Try something between '1' and '2000' milliseconds! The default is 10ms","E");
 	exit 1;
 }
 # longitude & latitude
+$longitude = $lon if ($lon);
 $longitude =~ s/,/\./ if ($longitude);
 if ($longitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified longitude '$longitude' is invalid!","E");
 	exit 1;
 }
+$latitude = $lat if ($lat);
 $latitude =~ s/,/\./ if ($latitude);
 if ($latitude !~ /^[-+]?\d+(\.\d+)?$/) {
 	LOG("The specified latitude '$latitude' is invalid!","E");
 	exit 1;
 }
 LOG("The antenna latitude & longitude are: '$latitude','$longitude'","I");
-#
-#===============================================================================
-# Socket that reads data from the PEER_HOST over port 30003.
-my $SOCKET;
-do {
-  	sleep 1;
-  	$SOCKET = new IO::Socket::INET( PeerAddr => $PEER_HOST,
- 		                        PeerPort => '30003',
-                                        Proto    => 'tcp');
-	if ($@) {
-		LOG("Error trying to connect to '$PEER_HOST', port 30003 (tcp): '$@'.","E");
-	} else {
-		LOG("Connected to '$PEER_HOST', port 30003 (tcp).","I");
-	}
-} while (!$SOCKET);
 #
 #===============================================================================
 # Convert epoch time to YYYY-MM-DD/HH:MM:SS format
@@ -463,6 +447,8 @@ sub Check_pid(@){
 # Compose pid file
 my $hostalias = $PEER_HOST;
 $hostalias =~ s/\./_/g if ($hostalias =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);
+LOG("The data directory/file is: $datadirectory/".filedate($hostalias).".txt","I");
+LOG("The log  directory/file is: $logdirectory/".filedate($hostalias).".log","I");
 my $pidfile = "$piddirectory/dump1090-$hostalias.pid";
 # 
 if (-e $pidfile) {
@@ -491,7 +477,7 @@ if (-e $pidfile) {
 		LOG("Starting '$scriptname'....","I"); 
 	} elsif ($stop) {
 		if ($pid) {
-                        LOG("'$scriptname' ($pid) is running!","I");
+                        LOG("'$scriptname' ($pid) is running!"."I");
                 } else {
                         LOG("'$scriptname' is not running!","W");
 			exit 1;
@@ -556,202 +542,218 @@ foreach my $header (@header) {
 	$columnnumber++;
 }
 #
-# Read messages from the 30003 socket in a continuous loop:
-my $errorcount = 0;
-while ($message = <$SOCKET>){
-	$message_count++;
-  	chomp($message);
-	if ($debug) {
-		if ($message) {
-			LOG("messagecount=$message_count,message='$message'","D");	
+#===============================================================================
+# Socket that reads data from the PEER_HOST over port 30003.
+$proto = getprotobyname('tcp');    #get the tcp protocol
+$connectioncount=0;
+my ($SOCKET);
+while (1) {
+	# create a socket handle (descriptor)
+	socket($SOCKET, AF_INET, SOCK_STREAM, $proto) or die "could not create socket : $!";
+	# connect to remote server
+	$iaddr = inet_aton($PEER_HOST) or die "Unable to resolve hostname : $PEER_HOST";
+	$paddr = sockaddr_in("30003", $iaddr);    #socket address structure    
+	connect($SOCKET , $paddr) or die "connect failed : $!";
+	LOG("Connected to $PEER_HOST on port 30003","D");
+	$connectioncount++;
+	#
+	# Read messages from the 30003 socket in a continuous loop:
+	my $errorcount = 0;
+	while ($message = <$SOCKET>){
+		$message_count++;
+	  	chomp($message);
+		if ($debug) {
+			if ($message) {
+				LOG("messagecount=$message_count,message='$message'","D");	
+			} else {
+				LOG("messagecount=$message_count,message=''","W");
+			}
+		}
+		# Split line into colomns:
+		my @col = split /,/,$message;
+		my $hex_ident = $col[$hdr{'hex_ident'}];
+		# Check whether if has enough columns and a hex_ident:
+		if ((@col > 20) && ($hex_ident) && ($hex_ident =~ /^[0-9A-F]+$/i)){
+			$errorcount = 0;
 		} else {
-			LOG("messagecount=$message_count,message=''","W");
+			$errorcount++;
+			if (($errorcount == 100) || ($errorcount == 1000)) {
+				# write an error message to the log file after 100 or 1000 incomplete messages in a row:
+				LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'","L");
+			} elsif ($errorcount > 10000) {
+				# Exits the script after 10000 incomplete messages in a row:
+				LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'. Exit script......","E");
+				LOG("Not able to read proper data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).","E");
+				exit;
+			}
+			next;
 		}
-	}
-	# Split line into colomns:
-	my @col = split /,/,$message;
-	my $hex_ident = $col[$hdr{'hex_ident'}];
-	# Check whether if has enough columns and a hex_ident:
-	if ((@col > 20) && ($hex_ident) && ($hex_ident =~ /^[0-9A-F]+$/i)){
-		$errorcount = 0;
-	} else {
-		$errorcount++;
-		if (($errorcount == 100) || ($errorcount == 1000)) {
-			# write an error message to the log file after 100 or 1000 incomplete messages in a row:
-			LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'","L");
-		} elsif ($errorcount > 10000) {
-			# Exits the script after 10000 incomplete messages in a row:
-			LOG("messagecount=$message_count, incomplete messages in a row: $errorcount, last message='$message'. Exit script......","E");
-			LOG("Not able to read proper data from the socket! Check whether your dump1090 is running on '$PEER_HOST' port 30003 (tcp).","E");
-			exit;
+		$epochtime = time;
+		# Flight first time seen:
+		if (! exists $flight{$hex_ident}{'lastseen'}) {
+			# Save time in epoch when the flight was first seen.
+			$flight{$hex_ident}{'firstseen'} = $epochtime; 
+			# Overall flight count (per day):
+			$flight_count++;
+			# Position count per flight:
+			$flight{$hex_ident}{'position_count'} = 0;
+			$flight{$hex_ident}{'message_count'} = 0;
 		}
-		next;
-	}
-	$epochtime = time;
-	# Flight first time seen:
-	if (! exists $flight{$hex_ident}{'lastseen'}) {
-		# Save time in epoch when the flight was first seen.
-		$flight{$hex_ident}{'firstseen'} = $epochtime; 
-		# Overall flight count (per day):
-		$flight_count++;
-		# Position count per flight:
-		$flight{$hex_ident}{'position_count'} = 0;
-		$flight{$hex_ident}{'message_count'} = 0;
-	}
-	# Save time when flight was last seen:
-	$flight{$hex_ident}{'lastseen'} = $epochtime; 
-	# Count messages per flight:
-	$flight{$hex_ident}{'message_count'}++;
-	# Compose filedate
-  	my ($second,$day,$month,$year,$minute) = (localtime)[0,3,4,5,1];
-	my $filedate = 'dump1090-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
-	# Every second we want to check whether the pid file is still there.
-	if($previous_second ne $second) {
-		$previous_second = $second;
-		if (!-e $pidfile) {
-			# The PID file was removed (by an outside process).
-			# This means it is time to exit.....
-			$interrupted = "The '$scriptname' ($pid) was interrupted. The pidfile $pidfile was removed by an outside process...!";		
+		# Save time when flight was last seen:
+		$flight{$hex_ident}{'lastseen'} = $epochtime; 
+		# Count messages per flight:
+		$flight{$hex_ident}{'message_count'}++;
+		# Compose filedate
+  		my ($second,$day,$month,$year,$minute) = (localtime)[0,3,4,5,1];
+		my $filedate = 'dump1090-'.$hostalias.'-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
+		# Every second we want to check whether the pid file is still there.
+		if($previous_second ne $second) {
+			$previous_second = $second;
+			if (!-e $pidfile) {
+				# The PID file was removed (by an outside process).
+				# This means it is time to exit.....
+				$interrupted = "The '$scriptname' ($pid) was interrupted. The pidfile $pidfile was removed by an outside process...!";		
+			}
 		}
-	}
-	# Handle data and log file:
-  	if($filedate ne $previous_date){
-		# Close files if they were open:
-		if ($previous_date ne "") {
-			close $data_filehandle;
+		# Handle data and log file:
+  		if($filedate ne $previous_date){
+			# Close files if they were open:
+			if ($previous_date ne "") {
+				close $data_filehandle;
+			}
+			# Set newfile date:
+  			$previous_date=$filedate;
+			# Open files 
+    			open($data_filehandle, '>>',"$datadirectory/$filedate.txt") or die "Unable to open '$datadirectory/$filedate.txt'!\n";
+    			$logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
+    			$data_filehandle->autoflush;
+			# write header: 
+		        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit),squawk,ground_speed($defaultspeedunit),track,callsign\n";
+			# reset counters for a new day:
+			$message_count = 1;
+			$position_count = keys %{$flight{$hex_ident}};
+			$flight_count = keys %flight;
+  		}
+		# Check every minute for hex_ident's that can be retiered:
+		if (($minute ne $previous_minute) || ($interrupted)) {
+			$previous_minute = $minute;
+			# Log overall statistics:
+			LOG("current number of flights=".scalar(keys %flight).",epoch=".epoch2date($epochtime).",msg_count=$message_count,pos_count=$position_count,flight_count=$flight_count,con_lost=$connectioncount.","L"); 
+			foreach my $hex_ident (keys %flight) {
+				# check if flight was not seen for longer than 120 secondes:
+				next unless ((($flight{$hex_ident}{'lastseen'} + 120) < $epochtime) || ($interrupted));
+				# Set position_count zero if there are no positions for this flight.
+				$flight{$hex_ident}{'position_count'} = 0 if (! exists $flight{$hex_ident}{'position_count'});
+				# Log flight statistics:
+				LOG("removed:$hex_ident,first seen=".epoch2date($flight{$hex_ident}{'firstseen'}).",last seen=".epoch2date($flight{$hex_ident}{'lastseen'}).",message_count=$flight{$hex_ident}{'message_count'},position_count=$flight{$hex_ident}{'position_count'}.","L"); 
+				# remove flight information (and prevent unnessesary memory usage).
+				delete $flight{$hex_ident};
+			}
+			if ($interrupted) {
+				LOG("Exit: $interrupted","I");			
+				exit;
+			}
 		}
-		# Set newfile date:
-  		$previous_date=$filedate;
-		# Open files 
-    		open($data_filehandle, '>>',"$datadirectory/$filedate.txt") or die "Unable to open '$datadirectory/$filedate.txt'!\n";
-		LOG("The data directory/file is: '$datadirectory/$filedate.txt'","I");
-    		$logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
-    		$data_filehandle->autoflush;
-		# write header: 
-	        print $data_filehandle "hex_ident,altitude($defaultaltitudeunit),latitude,longitude,date,time,angle,distance($defaultdistanceunit),squawk,ground_speed($defaultspeedunit),track,callsign\n";
-		# reset counters for a new day:
-		$message_count = 1;
-		$position_count = keys %{$flight{$hex_ident}};
-		$flight_count = keys %flight;
-  	}
-	# Check every minute for hex_ident's that can be retiered:
-	if (($minute ne $previous_minute) || ($interrupted)) {
-		$previous_minute = $minute;
-		# Log overall statistics:
-		LOG("current number of flights=".scalar(keys %flight).",epoch=".epoch2date($epochtime).",message_count=$message_count,position_count=$position_count,flight_count=$flight_count.","L"); 
-		foreach my $hex_ident (keys %flight) {
-			# check if flight was not seen for longer than 120 secondes:
-			next unless ((($flight{$hex_ident}{'lastseen'} + 120) < $epochtime) || ($interrupted));
-			# Set position_count zero if there are no positions for this flight.
-			$flight{$hex_ident}{'position_count'} = 0 if (! exists $flight{$hex_ident}{'position_count'});
-			# Log flight statistics:
-			LOG("removed:$hex_ident,first seen=".epoch2date($flight{$hex_ident}{'firstseen'}).",last seen=".epoch2date($flight{$hex_ident}{'lastseen'}).",message_count=$flight{$hex_ident}{'message_count'},position_count=$flight{$hex_ident}{'position_count'}.","L"); 
-			# remove flight information (and prevent unnessesary memory usage).
-			delete $flight{$hex_ident};
-		}
-		if ($interrupted) {
-			LOG("Exit: $interrupted","I");			
-			exit;
-		}
-	}
-	# Get logged date & time:
-	# 2015/04/06,19:14:29.596
-	my $loggeddatetime = $col[$hdr{'logged_date'}].",".$col[$hdr{'logged_time'}];
-	my ($hour,$millisecond);
-	if (($year,$month,$day,$hour,$minute,$second,$millisecond) = $loggeddatetime =~ /^(\d{4})\/(\d{2})\/(\d{2}),(\d{2}):(\d{2}):(\d{2})\.(\d{1,3})$/){
-		# change date & time into epoch time in milliseconds:
-       	        $loggeddatetime = (timelocal($second,$minute,$hour,$day,($month-1),$year).$millisecond) * 1000;
-	} else {
-		# No valid date & time format
-		 next;
-	}
-        # Save callsign
-        if ($col[$hdr{'callsign'}] =~ /[a-z0-9]+/i) {
-        	$flight{$hex_ident}{'callsign'} = $col[$hdr{'callsign'}];
-	}
-	# Save longitude and datetime
-	if ($col[$hdr{'lon'}] =~ /\./) {
-		$flight{$hex_ident}{'lon'} = $col[$hdr{'lon'}];
-		$flight{$hex_ident}{'lon_loggedtime'} = $loggeddatetime;
-	}
-	# Save latitude and datetime
-	if ($col[$hdr{'lat'}] =~ /\./) {
-		$flight{$hex_ident}{'lat'} = $col[$hdr{'lat'}];
-		$flight{$hex_ident}{'lat_loggedtime'} = $loggeddatetime;
-	}
-	# Save Altitude and datetime
-	if ($col[$hdr{'altitude'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
-		my $altitude = $col[$hdr{'altitude'}];
-		if ($defaultaltitudeunit =~ /^meter$/) {
-			# save feet as meters:
-			$flight{$hex_ident}{'altitude'} = int($altitude / 3.2828);
+		# Get logged date & time:
+		# 2015/04/06,19:14:29.596
+		my $loggeddatetime = $col[$hdr{'logged_date'}].",".$col[$hdr{'logged_time'}];
+		my ($hour,$millisecond);
+		if (($year,$month,$day,$hour,$minute,$second,$millisecond) = $loggeddatetime =~ /^(\d{4})\/(\d{2})\/(\d{2}),(\d{2}):(\d{2}):(\d{2})\.(\d{1,3})$/){
+			# change date & time into epoch time in milliseconds:
+       		        $loggeddatetime = (timelocal($second,$minute,$hour,$day,($month-1),$year).$millisecond) * 1000;
 		} else {
-			# save as feet:
-			$flight{$hex_ident}{'altitude'} = int($altitude);
+			# No valid date & time format
+			 next;
 		}
-		$flight{$hex_ident}{'altitude_loggedtime'} = $loggeddatetime;
-	}
-	# Save squawk
-	if ($col[$hdr{'squawk'}] =~ /^\d+$/) {
-		$flight{$hex_ident}{'squawk'} = $col[$hdr{'squawk'}];
-	}
-	# Save track
-	if ($col[$hdr{'track'}] =~ /^\d+\.?\d*$/) {
-		$flight{$hex_ident}{'track'} = $col[$hdr{'track'}];
-	}
-	# Save speed
-	if ($col[$hdr{'ground_speed'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
-		my $speed = $col[$hdr{'ground_speed'}];
-		if ($defaultspeedunit =~ /^mileph$/) {
-			# save knots as miles:
-			$flight{$hex_ident}{'ground_speed'} = int($speed * 1.150779);
-		} elsif ($defaultspeedunit =~ /^kilometerph$/) {
-			# save knots as kilometers
-			$flight{$hex_ident}{'ground_speed'} = int($speed * 1.852);
-		} else {
-			# save as knots as knots
-			$flight{$hex_ident}{'ground_speed'} = int($speed);
+       	 	# Save callsign
+       	 	if ($col[$hdr{'callsign'}] =~ /[a-z0-9]+/i) {
+       	 		$flight{$hex_ident}{'callsign'} = $col[$hdr{'callsign'}];
+		}
+		# Save longitude and datetime
+		if ($col[$hdr{'lon'}] =~ /\./) {
+			$flight{$hex_ident}{'lon'} = $col[$hdr{'lon'}];
+			$flight{$hex_ident}{'lon_loggedtime'} = $loggeddatetime;
+		}
+		# Save latitude and datetime
+		if ($col[$hdr{'lat'}] =~ /\./) {
+			$flight{$hex_ident}{'lat'} = $col[$hdr{'lat'}];
+			$flight{$hex_ident}{'lat_loggedtime'} = $loggeddatetime;
+		}
+		# Save Altitude and datetime
+		if ($col[$hdr{'altitude'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
+			my $altitude = $col[$hdr{'altitude'}];
+			if ($defaultaltitudeunit =~ /^meter$/) {
+				# save feet as meters:
+				$flight{$hex_ident}{'altitude'} = int($altitude / 3.2828);
+			} else {
+				# save as feet:
+				$flight{$hex_ident}{'altitude'} = int($altitude);
+			}
+			$flight{$hex_ident}{'altitude_loggedtime'} = $loggeddatetime;
+		}
+		# Save squawk
+		if ($col[$hdr{'squawk'}] =~ /^\d+$/) {
+			$flight{$hex_ident}{'squawk'} = $col[$hdr{'squawk'}];
+		}
+		# Save track
+		if ($col[$hdr{'track'}] =~ /^\d+\.?\d*$/) {
+			$flight{$hex_ident}{'track'} = $col[$hdr{'track'}];
+		}
+		# Save speed
+		if ($col[$hdr{'ground_speed'}] =~ /^\d*[123456789]\d*\.?\d*$/) {
+			my $speed = $col[$hdr{'ground_speed'}];
+			if ($defaultspeedunit =~ /^mileph$/) {
+				# save knots as miles:
+				$flight{$hex_ident}{'ground_speed'} = int($speed * 1.150779);
+			} elsif ($defaultspeedunit =~ /^kilometerph$/) {
+				# save knots as kilometers
+				$flight{$hex_ident}{'ground_speed'} = int($speed * 1.852);
+			} else {
+				# save as knots as knots
+				$flight{$hex_ident}{'ground_speed'} = int($speed);
+			}
+		}
+		# Be sure that the requiered fields (longitude, latitude and altitude) for this flight are captured:
+		next unless ((exists $flight{$hex_ident}{'lon'}) && (exists $flight{$hex_ident}{'lat'}) && (exists $flight{$hex_ident}{'altitude'})); 
+		# If there is a time difference, calculate the time differences between messages:
+		my $diff1 = abs($flight{$hex_ident}{'lon_loggedtime'} - $flight{$hex_ident}{'lat_loggedtime'});
+		my $diff2 = abs($flight{$hex_ident}{'lon_loggedtime'} - $flight{$hex_ident}{'altitude_loggedtime'});
+		my $diff3 = abs($flight{$hex_ident}{'lat_loggedtime'} - $flight{$hex_ident}{'altitude_loggedtime'});
+		# Be sure that the time differance between the messages is less than $TIME_MESSAGE_MARGIN.
+		next unless (($diff1 < $TIME_MESSAGE_MARGIN) && ($diff2 < $TIME_MESSAGE_MARGIN) && ($diff3 < $TIME_MESSAGE_MARGIN));
+       	 	# Skip this one. All the values need to be different...
+       	 	next if ((exists $flight{$hex_ident}{'prev_lon'})      		  && ($flight{$hex_ident}{'lon'}      		 eq $flight{$hex_ident}{'prev_lon'}) &&  
+       	          (exists $flight{$hex_ident}{'Prev_lat'})      		  && ($flight{$hex_ident}{'lat'}      		 eq $flight{$hex_ident}{'Prev_lat'}) &&  
+       	          (exists $flight{$hex_ident}{'prev_altitude'}) 		  && ($flight{$hex_ident}{'altitude'} 		 eq $flight{$hex_ident}{'prev_altitude'}));
+		# Skip this one. All the values need to be from a new moment...
+		next if ((exists $flight{$hex_ident}{'prev_lon_loggedtime'})      && ($flight{$hex_ident}{'lon_loggedtime'}      eq $flight{$hex_ident}{'prev_lon_loggedtime'}) && 
+			 (exists $flight{$hex_ident}{'Prev_lat_loggedtime'})      && ($flight{$hex_ident}{'lat_loggedtime'}      eq $flight{$hex_ident}{'Prev_lat_loggedtime'}) && 
+			 (exists $flight{$hex_ident}{'prev_altitude_loggedtime'}) && ($flight{$hex_ident}{'altitude_loggedtime'} eq $flight{$hex_ident}{'prev_altitude_loggedtime'}));
+		
+		# Count the positions per flight and overall:
+		$flight{$hex_ident}{'position_count'}++;
+		$position_count++;
+		# Get angle and distance
+		my $angle = int(angle($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'}) * 100) / 100;
+		my $distance = distance($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'});	
+		# Write the data to the data file:
+		print $data_filehandle "$hex_ident,$flight{$hex_ident}{'altitude'},$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'},$col[$hdr{'logged_date'}],$col[$hdr{'logged_time'}],$angle,$distance,".($flight{$hex_ident}{'squawk'}||"").",".($flight{$hex_ident}{'ground_speed'}||"").",".($flight{$hex_ident}{'track'}||"").",".($flight{$hex_ident}{'callsign'}||"")."\n";
+		# Save the values per flight to examine the next position.
+		$flight{$hex_ident}{'prev_lon'}      		= $flight{$hex_ident}{'lon'};
+		$flight{$hex_ident}{'Prev_lat'}      		= $flight{$hex_ident}{'lat'};
+		$flight{$hex_ident}{'prev_altitude'}            = $flight{$hex_ident}{'altitude'};
+       	 	$flight{$hex_ident}{'prev_lon_loggedtime'}      = $flight{$hex_ident}{'lon_loggedtime'};
+       		$flight{$hex_ident}{'Prev_lat_loggedtime'}      = $flight{$hex_ident}{'lat_loggedtime'};
+       	 	$flight{$hex_ident}{'prev_altitude_loggedtime'} = $flight{$hex_ident}{'altitude_loggedtime'};
+		# Display statistics when running interactive:
+		if (($interactive) && (!$nopositions)) {
+			my $back = length "positions:".$position_count;
+                	print "positions:".$position_count, substr "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
 		}
 	}
-	# Be sure that the requiered fields (longitude, latitude and altitude) for this flight are captured:
-	next unless ((exists $flight{$hex_ident}{'lon'}) && (exists $flight{$hex_ident}{'lat'}) && (exists $flight{$hex_ident}{'altitude'})); 
-	# If there is a time difference, calculate the time differences between messages:
-	my $diff1 = abs($flight{$hex_ident}{'lon_loggedtime'} - $flight{$hex_ident}{'lat_loggedtime'});
-	my $diff2 = abs($flight{$hex_ident}{'lon_loggedtime'} - $flight{$hex_ident}{'altitude_loggedtime'});
-	my $diff3 = abs($flight{$hex_ident}{'lat_loggedtime'} - $flight{$hex_ident}{'altitude_loggedtime'});
-	# Be sure that the time differance between the messages is less than $TIME_MESSAGE_MARGIN.
-	next unless (($diff1 < $TIME_MESSAGE_MARGIN) && ($diff2 < $TIME_MESSAGE_MARGIN) && ($diff3 < $TIME_MESSAGE_MARGIN));
-        # Skip this one. All the values need to be different...
-        next if ((exists $flight{$hex_ident}{'prev_lon'})      		  && ($flight{$hex_ident}{'lon'}      		 eq $flight{$hex_ident}{'prev_lon'}) &&  
-                 (exists $flight{$hex_ident}{'Prev_lat'})      		  && ($flight{$hex_ident}{'lat'}      		 eq $flight{$hex_ident}{'Prev_lat'}) &&  
-                 (exists $flight{$hex_ident}{'prev_altitude'}) 		  && ($flight{$hex_ident}{'altitude'} 		 eq $flight{$hex_ident}{'prev_altitude'}));
-	# Skip this one. All the values need to be from a new moment...
-	next if ((exists $flight{$hex_ident}{'prev_lon_loggedtime'})      && ($flight{$hex_ident}{'lon_loggedtime'}      eq $flight{$hex_ident}{'prev_lon_loggedtime'}) && 
-		 (exists $flight{$hex_ident}{'Prev_lat_loggedtime'})      && ($flight{$hex_ident}{'lat_loggedtime'}      eq $flight{$hex_ident}{'Prev_lat_loggedtime'}) && 
-		 (exists $flight{$hex_ident}{'prev_altitude_loggedtime'}) && ($flight{$hex_ident}{'altitude_loggedtime'} eq $flight{$hex_ident}{'prev_altitude_loggedtime'}));
-	
-	# Count the positions per flight and overall:
-	$flight{$hex_ident}{'position_count'}++;
-	$position_count++;
-	# Get angle and distance
-	my $angle = int(angle($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'}) * 100) / 100;
-	my $distance = distance($latitude,$longitude,$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'});	
-	# Write the data to the data file:
-	print $data_filehandle "$hex_ident,$flight{$hex_ident}{'altitude'},$flight{$hex_ident}{'lat'},$flight{$hex_ident}{'lon'},$col[$hdr{'logged_date'}],$col[$hdr{'logged_time'}],$angle,$distance,".($flight{$hex_ident}{'squawk'}||"").",".($flight{$hex_ident}{'ground_speed'}||"").",".($flight{$hex_ident}{'track'}||"").",".($flight{$hex_ident}{'callsign'}||"")."\n";
-	# Save the values per flight to examine the next position.
-	$flight{$hex_ident}{'prev_lon'}      		= $flight{$hex_ident}{'lon'};
-	$flight{$hex_ident}{'Prev_lat'}      		= $flight{$hex_ident}{'lat'};
-	$flight{$hex_ident}{'prev_altitude'}            = $flight{$hex_ident}{'altitude'};
-        $flight{$hex_ident}{'prev_lon_loggedtime'}      = $flight{$hex_ident}{'lon_loggedtime'};
-        $flight{$hex_ident}{'Prev_lat_loggedtime'}      = $flight{$hex_ident}{'lat_loggedtime'};
-        $flight{$hex_ident}{'prev_altitude_loggedtime'} = $flight{$hex_ident}{'altitude_loggedtime'};
-	# Display statistics when running interactive:
-	if (($interactive) && ($showpositions) && ($showpositions =~ /yes/)) {
-		my $back = length "positions:".$position_count;
-                print "positions:".$position_count, substr "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
-	}
-
+	LOG("lost TCP connection","D");
 }
+
 # This cleanup routine will be executed even when the script is stopped by an 'exit' of CTRL-C.
 END {
 	# Clean up pidfile (if exists)
