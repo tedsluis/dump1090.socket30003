@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2016-01-01
+# ted.sluis@gmail.com
 # Filename : rangeview.pl
 #
 #===============================================================================
@@ -235,6 +235,54 @@ each zone and for each direction the most remote location is
 saved. The most remote locations per altitude zone will be 
 written to a file as a track. 
 
+Default .kml output format:
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Paths</name>
+    <description>Example</description>
+<Style id="track-1">
+      <LineStyle>
+        <color>ff135beb</color>
+        <width>2</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>ff135beb</color>
+      </PolyStyle>
+    </Style>
+    <Placemark>
+      <name>1</name>
+      <description>00000-  500</description>
+      <styleUrl>#track-1</styleUrl>
+      <LineString>
+        <altitudeMode>absolute</altitudeMode>
+        <coordinates>
+5.08865,52.00493,357
+5.08808,52.00616,357
+5.08722,52.00788,357
+5.08667,52.00914,357
+5.08604,52.01039,357
+5.08560,52.01125,357
+5.08518,52.01230,357
+5.08461,52.01335,357
+5.08400,52.01463,357
+5.08345,52.01579,357
+5.08293,52.01683,357
+  
+Optional CSV output format:  
+type,new_track,name,color,trackpoint,altitudezone,destination,hex_ident,Altitude(meter),latitude,longitude,date,time,angle,distance(kilometer)  
+T,1,Altitude zone 1: 00000-  500,7fffff00,1,     0,-718,484646,357,52.00493,5.08865,2017/01/10,10:46:15.738,-179.72,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,2,     0,-717,484646,357,52.00616,5.08808,2017/01/10,10:46:17.164,-179.32,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,3,     0,-714,484646,357,52.00788,5.08722,2017/01/10,10:46:19.740,-178.7,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,4,     0,-713,484646,357,52.00914,5.08667,2017/01/10,10:46:21.041,-178.28,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,5,     0,-711,484646,357,52.01039,5.08604,2017/01/10,10:46:22.622,-177.79,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,6,     0,-709,484646,357,52.01125,5.08560,2017/01/10,10:46:23.892,-177.44,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,7,     0,-708,484646,357,52.01230,5.08518,2017/01/10,10:46:25.244,-177.09,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,8,     0,-706,484646,357,52.01335,5.08461,2017/01/10,10:46:26.625,-176.62,8  
+T,0,Altitude zone 1: 00000-  500,7fffff00,9,     0,-704,484646,357,52.01463,5.08400,2017/01/10,10:46:28.031,-176.09,7  
+T,0,Altitude zone 1: 00000-  500,7fffff00,10,     0,-702,484646,357,52.01579,5.08345,2017/01/10,10:46:29.475,-175.59,7  
+T,0,Altitude zone 1: 00000-  500,7fffff00,11,     0,-700,484646,357,52.01683,5.08293,2017/01/10,10:46:30.940,-175.11,7  
+  
 Syntax: $scriptname
 
 Optional parameters:
