@@ -24,10 +24,8 @@ $SIG{'INT'} = \&intHandler;
 
 sub intHandler {
 	# Someone pressed Ctrl-C
-	#LOG("CTRL-C was pressed. Do you want to exit '$scriptname'? (y/n)","W");
-	#my $answer = <STDIN>;
 	my $answer = common->ReadInput("CTRL-C was pressed. Do you want to exit '$scriptname'?","regular","y","n");
-	if ($answer =~ /^y$/i) {
+	if ((!$answer) || ($answer =~ /^y$/i)) {
 		LOG("Exiting '$scriptname'.....","I");
 		exit 1;
 	} else {
