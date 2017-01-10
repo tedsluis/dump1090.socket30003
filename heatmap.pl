@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Ted Sluis 2015-22-12-24
+# ted.sluis@gmail.com
 # heatmap.pl
 #
 #===============================================================================
@@ -155,6 +155,15 @@ too much positions in the heatmap. Of cource this also depends on
 the amount of memory of your system. You can change the default 
 number of heatmap positions. You can also set the maximum of 
 'weight' per heatmap position. 
+
+CSV output format:
+\"weight\";\"lat\";\"lon\"
+\"1001\";\"52.489\";\"4.729\"
+\"883\";\"52.37\";\"4.72\"
+\"868\";\"52.19\";\"4.81\"
+\"862\";\"51.9\";\"4.75\"
+\"791\";\"52.12\";\"4.8\"
+\"759\";\"52.01\";\"4.779\"
 
 Syntax: $scriptname
 
