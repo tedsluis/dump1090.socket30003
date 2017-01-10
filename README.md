@@ -32,7 +32,7 @@ Use your dump1090 to collect flight data and create a heatmap and rangeview.
 ## Screenshots and video
 
 Heatmap
-[![Dump1090 Heatmap](https://raw.githubusercontent.com/tedsluis/dump109o.socket30003/master/img/heatmap-example1.png)](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/heatmap-example1.png)
+[![Dump1090 Heatmap](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/heatmap-example1.png)](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/heatmap-example1.png)
 
 Rangeview
 [![Dump1090 rangeview](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/rangeview-example1.png)](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/rangeview-example1.png)
