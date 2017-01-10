@@ -73,6 +73,42 @@ sub LOG(@){
         common->LOG($logfile,@_);
 }
 #
+#=============================================================================== 
+# Check options:
+if ($help) {
+	print "\nThis $scriptname script installs the socket30003 scripts.
+It will create the directories, copy the files, check and set the permissions.
+In case of an update, it will backup the original config file and add new 
+parameters if applicable.
+
+Please read this post for more info:
+http://discussions.flightaware.com/post180185.html#p180185
+
+Syntax: $scriptname
+
+Optional parameters:
+  -install <install       The script will be installed in
+            directory>    '/home/pi/socket30003' by default.
+  -data <data directory>  The data files will be stored in 
+                          '/tmp' by default.
+  -log  <data directory>  The log files will be stored in 
+                          '/tmp' by default.
+  -output <output         The output files will be stored in 
+            directory>    '' by default.
+  -pid <pid directory>    The pid files will be stored in
+                          '/tmp'.
+  -debug                  Displays raw socket messages.
+  -verbose                Displays verbose log messages.
+  -help                   This help page.
+
+Examples:
+  $scriptname 
+  $scriptname -install /user/share/socket30003
+  $scriptname -data /home/pi/data -log /home/pi/log -output /home/pi/result \n\n";
+	exit 0;
+}
+
+#
 #===============================================================================
 # Read settings from config file
 my %setting = common->READCONFIG('socket30003.cfg',$fullscriptname);
@@ -243,41 +279,6 @@ if ($modify =~ /no/) {
 my ($second,$day,$month,$year,$minute,$hour) = (localtime)[0,3,4,5,1,2];
 my $filedate = 'install-'.sprintf '%02d%02d%02d', $year-100,($month+1),$day;
 $logfile = common->LOGset($logdirectory,"$filedate.log",$verbose);
-#
-#=============================================================================== 
-# Check options:
-if ($help) {
-	print "\nThis $scriptname script installs the socket30003 scripts.
-It will create the directories, copy the files, check and set the permissions.
-In case of an update, it will backup the original config file and add new 
-parameters if applicable.
-
-Please read this post for more info:
-http://discussions.flightaware.com/post180185.html#p180185
-
-Syntax: $scriptname
-
-Optional parameters:
-  -install <install       The script will be installed in
-            directory>    '$installdirectory' by default.
-  -data <data directory>  The data files will be stored in 
-                          '$datadirectory' by default.
-  -log  <data directory>  The log files will be stored in 
-                          '$logdirectory' by default.
-  -output <output         The output files will be stored in 
-            directory>    '$outputdirectory' by default.
-  -pid <pid directory>    The pid files will be stored in
-                          '$piddirectory'.
-  -debug                  Displays raw socket messages.
-  -verbose                Displays verbose log messages.
-  -help                   This help page.
-
-Examples:
-  $scriptname 
-  $scriptname -install /user/share/socket30003
-  $scriptname -data /home/pi/data -log /home/pi/log -output /home/pi/result \n\n";
-	exit 0;
-}
 #
 #===============================================================================
 #
