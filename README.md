@@ -31,10 +31,10 @@ Use your dump1090 to collect flight data and create a heatmap and rangeview.
    
 ## Screenshots and video
 
-Heatmap
+Heatmap. What are the flight paths through the air.
 [![Dump1090 Heatmap](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/heatmap-example1.png)](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/heatmap-example1.png)
 
-Rangeview
+Rangeview. How far is the reach of your antenna.
 [![Dump1090 rangeview](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/rangeview-example1.png)](https://raw.githubusercontent.com/tedsluis/dump1090.socket30003/master/img/rangeview-example1.png)
 
 Youtube video:
@@ -447,6 +447,8 @@ Examples:
 ````
 ## Installation
   
+Follow these steps for the use of the scripts.  
+  
 ### Clone this repo
 ````
 $ cd 
@@ -465,12 +467,17 @@ $ vi socket.cfg          (or use an other editor)
 ````
   
 ### Run installer
+  
 Files wil be copied to the install directory.
+  
 ````  
 $ ./install.pl
 ````
-
+The files are now installed in the install directory from where you should use the scripts.
+  
 ### Add socket30003.pl as a crontab job
+  
+Of cource you can run 'socket30003.pl' from teh commandline, but if you want to leave it running for days or weeks you should add it as a crontab job.  
 ````
 $ sudo crontab -e 
 
@@ -479,6 +486,8 @@ $ sudo crontab -e
 note: script will start every 5 minutes if it is not running anymore.
 
 ### Check the log and output file
+  
+Wait at least a view minutes and then:  
 ````
 $ cat /tmp/*dump1090*.log | less
 $ cat /tmp/*dump1090*.txt | less
@@ -486,28 +495,95 @@ $ cat /tmp/*dump1090*.txt | less
 
 ### Run heatmap.pl
    
+Process the flight data and create a heatmap.  
+  
 Wait a couple of days to be sure you have enough data.  
 ````
 $ cd
 $ cd socket30003
 $ ./heatmap 
+10Jan17 17:20:32 pid=6403  I pi Log file: '/tmp/heatmap-170110.log'
+10Jan17 17:20:32 pid=6403  I pi There will be no more then '50000' positions in the output file.
+10Jan17 17:20:32 pid=6403  I pi The maximum position weight will be not more then '1000'.
+10Jan17 17:20:32 pid=6403  I pi Output file: '/tmp/heatmapdata.csv'
+10Jan17 17:20:32 pid=6403  I pi The resolution op the heatmap will be 1000x1000.
+10Jan17 17:20:32 pid=6403  I pi The antenna latitude & longitude are: '52.01','5.01'.
+10Jan17 17:20:32 pid=6403  I pi The heatmap will cover the area of 5 degree around the antenna, which is between latitude 47 - 57 and longitude 0 - 10.
+10Jan17 17:20:32 pid=6403  I pi The following files in directory '/tmp' fit with the filemask '*dump*.txt*':
+10Jan17 17:20:32 pid=6403  I pi   /tmp/dump1090-ted1090-5-170110.txt
+10Jan17 17:20:32 pid=6403  I pi   /tmp/dump1090-ted1090-5-170109.txt
+10Jan17 17:20:32 pid=6403  I pi Processing file '/tmp/dump1090-ted1090-5-170110.txt':
+10Jan17 17:22:12 pid=6403  I pi   -header units:altitude=meter,distance=kilometer,ground_speed=kilometerph, position 1-1369896 processed. 339 positions were out side the specified area.
+10Jan17 17:22:12 pid=6403  I pi Processing file '/tmp/dump1090-ted1090-5-170109.txt':
+10Jan17 17:22:55 pid=6403  I pi   -header units:altitude=meter,distance=kilometer,ground_speed=kilometerph, position 1-580075 processed. 118 positions were out side the specified area.
+10Jan17 17:22:57 pid=6403  I pi Number of sorted heatmap positions: 208056
+10Jan17 17:23:02 pid=6403  I pi The highest weight is '00001259' and the lowest weight is '00000010'.
+10Jan17 17:23:02 pid=6403  I pi Since the highest weight is more the the max weight '1000' the weight of all points will be multiplied with a factor 0.79428117553614.
+10Jan17 17:23:04 pid=6403  I pi 50000 rows with heatmap position data processed!
 ````
 You can find the result in '/tmp/heatmap.csv'.
-
+  
 ### Run rangview.pl
-
+  
+Process the flight data and create a rangeview.  
+  
+Be sure you have have collected data for a couple of days!  
+  
 ````
 $ cd
 $ cd socket30003
 $ ./rangview.pl
+10Jan17 20:30:38 pid=8562  I pi Log file: '/tmp/rangeview-170110.log'
+The altitude will be converted from 'meter' to 'meter'.
+The distance will be converted from 'kilometer' to 'kilometer.
+10Jan17 20:30:38 pid=8562  I pi Output file: '/tmp/rangeview.csv'
+10Jan17 20:30:38 pid=8562  I pi The maximum altitude is 12000 meter.
+10Jan17 20:30:38 pid=8562  I pi The minimal altitude is 0 meter.
+10Jan17 20:30:38 pid=8562  I pi The number of compass directions (pie slices) is 1440.
+10Jan17 20:30:38 pid=8562  I pi The number of altitude zones is 24.
+10Jan17 20:30:38 pid=8562  I pi The latitude/longitude location of the antenna is: 52.085624,5.0890591.
+10Jan17 20:30:38 pid=8562  I pi An altitude zone is 500 meter.
+10Jan17 20:30:38 pid=8562  I pi The following files fit with the filemask '*dump*.txt*':
+10Jan17 20:30:38 pid=8562  I pi     /tmp/dump1090-ted1090-5-170110.txt
+10Jan17 20:30:38 pid=8562  I pi     /tmp/dump1090-ted1090-5-170109.txt
+10Jan17 20:30:38 pid=8562  I pi processing '/tmp/dump1090-ted1090-5-170110.txt':
+10Jan17 20:32:47 pid=8562  I pi   -header units:altitude=meter,distance=kilometer,ground_speed=kilometerph, position 1-1591682. processed.
+10Jan17 20:32:47 pid=8562  I pi processing '/tmp/dump1090-ted1090-5-170109.txt':
+10Jan17 20:33:33 pid=8562  I pi   -header units:altitude=meter,distance=kilometer,ground_speed=kilometerph, position 1-580075. processed.
+10Jan17 20:33:33 pid=8562  I pi Number of files read: 2
+10Jan17 20:33:33 pid=8562  I pi Number of position processed: 2171757 and positions within range processed: 2060038
+10Jan17 20:33:35 pid=8562  I pi   1,Altitude zone:     0-   499,Directions:  406/ 1440,Positions processed:      8128,Positions processed per direction: min:     1,max:   545,avg:     5,real avg:    20
+10Jan17 20:33:35 pid=8562  I pi   2,Altitude zone:   500-   999,Directions:  524/ 1440,Positions processed:     33499,Positions processed per direction: min:     0,max:   778,avg:    23,real avg:    64
+10Jan17 20:33:35 pid=8562  I pi   3,Altitude zone:  1000-  1499,Directions:  734/ 1440,Positions processed:     37874,Positions processed per direction: min:     0,max:   766,avg:    26,real avg:    51
+10Jan17 20:33:35 pid=8562  I pi   4,Altitude zone:  1500-  1999,Directions: 1114/ 1440,Positions processed:     40865,Positions processed per direction: min:     2,max:   627,avg:    28,real avg:    36
+10Jan17 20:33:35 pid=8562  I pi   5,Altitude zone:  2000-  2499,Directions: 1241/ 1440,Positions processed:     45281,Positions processed per direction: min:    23,max:   618,avg:    31,real avg:    36
+10Jan17 20:33:35 pid=8562  I pi   6,Altitude zone:  2500-  2999,Directions: 1299/ 1440,Positions processed:     40231,Positions processed per direction: min:    29,max:   670,avg:    27,real avg:    30
+10Jan17 20:33:35 pid=8562  I pi   7,Altitude zone:  3000-  3499,Directions: 1373/ 1440,Positions processed:     55566,Positions processed per direction: min:    18,max:   469,avg:    38,real avg:    40
+10Jan17 20:33:36 pid=8562  I pi   8,Altitude zone:  3500-  3999,Directions: 1410/ 1440,Positions processed:     42652,Positions processed per direction: min:    16,max:   292,avg:    29,real avg:    30
+10Jan17 20:33:36 pid=8562  I pi   9,Altitude zone:  4000-  4499,Directions: 1387/ 1440,Positions processed:     42639,Positions processed per direction: min:     4,max:   222,avg:    29,real avg:    30
+10Jan17 20:33:36 pid=8562  I pi  10,Altitude zone:  4500-  4999,Directions: 1374/ 1440,Positions processed:     45339,Positions processed per direction: min:    20,max:   267,avg:    31,real avg:    33
+10Jan17 20:33:36 pid=8562  I pi  11,Altitude zone:  5000-  5499,Directions: 1356/ 1440,Positions processed:     43614,Positions processed per direction: min:    18,max:   322,avg:    30,real avg:    32
+10Jan17 20:33:36 pid=8562  I pi  12,Altitude zone:  5500-  5999,Directions: 1322/ 1440,Positions processed:     42356,Positions processed per direction: min:    11,max:   330,avg:    29,real avg:    32
+10Jan17 20:33:36 pid=8562  I pi  13,Altitude zone:  6000-  6499,Directions: 1388/ 1440,Positions processed:     45874,Positions processed per direction: min:    12,max:   623,avg:    31,real avg:    33
+10Jan17 20:33:36 pid=8562  I pi  14,Altitude zone:  6500-  6999,Directions: 1275/ 1440,Positions processed:     47050,Positions processed per direction: min:    17,max:   686,avg:    32,real avg:    36
+10Jan17 20:33:36 pid=8562  I pi  15,Altitude zone:  7000-  7499,Directions: 1301/ 1440,Positions processed:     55586,Positions processed per direction: min:    28,max:   686,avg:    38,real avg:    42
+10Jan17 20:33:36 pid=8562  I pi  16,Altitude zone:  7500-  7999,Directions: 1411/ 1440,Positions processed:     45161,Positions processed per direction: min:    26,max:   514,avg:    31,real avg:    32
+10Jan17 20:33:36 pid=8562  I pi  17,Altitude zone:  8000-  8499,Directions: 1416/ 1440,Positions processed:     44739,Positions processed per direction: min:    13,max:   567,avg:    31,real avg:    31
+10Jan17 20:33:37 pid=8562  I pi  18,Altitude zone:  8500-  8999,Directions: 1415/ 1440,Positions processed:     56940,Positions processed per direction: min:    43,max:   829,avg:    39,real avg:    40
+10Jan17 20:33:37 pid=8562  I pi  19,Altitude zone:  9000-  9499,Directions: 1440/ 1440,Positions processed:    101448,Positions processed per direction: min:    96,max:   479,avg:    70,real avg:    70
+10Jan17 20:33:37 pid=8562  I pi  20,Altitude zone:  9500-  9999,Directions: 1422/ 1440,Positions processed:     69574,Positions processed per direction: min:    59,max:   428,avg:    48,real avg:    48
+10Jan17 20:33:37 pid=8562  I pi  21,Altitude zone: 10000- 10499,Directions: 1440/ 1440,Positions processed:    181891,Positions processed per direction: min:   112,max:   748,avg:   126,real avg:   126
+10Jan17 20:33:37 pid=8562  I pi  22,Altitude zone: 10500- 10999,Directions: 1440/ 1440,Positions processed:    363296,Positions processed per direction: min:   177,max:  1431,avg:   252,real avg:   252
+10Jan17 20:33:37 pid=8562  I pi  23,Altitude zone: 11000- 11499,Directions: 1440/ 1440,Positions processed:    226620,Positions processed per direction: min:   178,max:  2577,avg:   157,real avg:   157
+10Jan17 20:33:37 pid=8562  I pi  24,Altitude zone: 11500- 11999,Directions: 1440/ 1440,Positions processed:    343815,Positions processed per direction: min:   240,max:   975,avg:   238,real avg:   238
 ````
-You can find the result in 'rangview.kml'.
+You can find the result in '/tmp/rangview.kml'.
 
 ### View the heatmap
   
 Be sure you have my version of dump1090 mutability installed: https://github.com/tedsluis/dump1090
 
-Copy the heatmap.csv to /usr/share/dump1090-mutability/html/
+Copy the 'heatmap.csv' to '/usr/share/dump1090-mutability/html/'
 ````
 $ sudo cp /tmp/heatmap.csv /usr/share/dump1090-mutability/html/heatmapdata.csv
 ```` 
@@ -519,14 +595,15 @@ Refresh the dump1090 web GUI and toggle the [heatmap] button.
   
 Be sure you have my version of dump1090 mutability installed: https://github.com/tedsluis/dump1090
   
-Copy the rangview.kml to a webserver where it can be publicly accessed (nessesary for the Google maps API).  
-
+Copy the 'rangview.kml' to a webserver where it can be publicly accessed (nessesary for the Google maps API).  
+You can use Github, dropbox of Google drive to share the 'rangeview.kml' publicly.  
+  
 Edit and fill in the URL of the rangeview.kml after 'UserMap='.
 ````
 $ sudo vi /usr/share/dump1090-mutability/html/config.js 
 ````
   
-Refresh the dump1090 web GUI and toggle the [heatmap] button.
+Refresh the dump1090 web GUI and toggle the [rangeview] button.
 
 ## More info
 
