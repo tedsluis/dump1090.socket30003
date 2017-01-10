@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2016-01-01
+# ted.sluis@gmail.com
 # Filename : install.pl
 #
 #===============================================================================
@@ -300,4 +300,4 @@ my $cfg="$installdirectory/socket30003.cfg";
 @cmd=`sed -i "s|^datadirectory=.*|datadirectory=$datadirectory|g"       $cfg`;
 @cmd=`sed -i "s|^logdirectory=.*|logdirectory=$logdirectory|g"          $cfg`;
 @cmd=`sed -i "s|^piddirectory=.*|piddirectory=$piddirectory|g"          $cfg`;
-
+print "Finished!\n";
