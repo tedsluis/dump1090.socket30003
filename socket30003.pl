@@ -1,10 +1,11 @@
 #!/usr/bin/perl -w
-# Ted Sluis 2015-12-17
+# ted.sluis@gmail.com
 # Filename : socket30003.pl
 #
 #===============================================================================
-# This script reads data from a dump1090 instance using port 30003 and writes 
-# longitude, latitude, altitude, hex_indent, date and time to a text file (comma serperated).
+# This script reads data from a dump1090 instance using TCP 30003 port stream  and writes 
+# longitude, latitude, altitude, hex_indent, flight number, ground speed, squawk, 
+# direction, date and time to a text file (comma serperated).
 # The script also calculates the angle and distance relative to location of the antenna.
 #===============================================================================
 # Down here are the fields that are served in the messages by dump1090 over port 30003:
@@ -173,9 +174,9 @@ my $longitude             = $setting{'socket30003'}{'longitude'}           || $s
 # Check options:
 if ($help) {
 	print "
-This $scriptname script can retrieve flight data (lat, lon and alt) from
-a dump1090 host using port 30003 and calcutates the distance and angle
-between the antenna and the plane. It will store these values in an 
+This $scriptname script can retrieve flight data (like lat, lon and alt) 
+from a dump1090 host using port 30003 and calcutates the distance and 
+angle between the antenna and the plane. It will store these values in an 
 output file in csv format (seperated by commas).
 
 This script can run several times simultaneously on one host retrieving
@@ -196,6 +197,14 @@ By default the position data, log files and pid file(s) will be stored in this f
   dump1090-<hostname/ip_address>-<YYMMDD>.txt
   dump1090-<hostname/ip_address>-<YYMMDD>.log
   dump1090-<hostname/ip_address>.pid
+
+CSV output format:
+hex_ident,altitude(meter),latitude,longitude,date,time,angle,distance(kilometer),squawk,ground_speed(kilometerph),track,callsign
+484CB8,3906,52.24399,5.25500,2017/01/09,16:35:02.113,45.11,20.93,0141,659,93,KLM1833 
+406D77,11575,51.09984,7.73237,2017/01/09,16:35:02.129,111.12,212.94,,,,BAW256  
+4CA1D4,11270,53.11666,6.02148,2017/01/09,16:35:03.464,40.85,130.79,,842,81,RYR89VN 
+4B1A1B,3426,51.86971,4.14556,2017/01/09,16:35:03.489,-103.38,68.93,1000,548,352,EZS85TP 
+4CA79D,11575,51.95681,4.17119,2017/01/09,16:35:03.489,-98.28,64.41,1366,775,263,RYR43FH 
 
 The script can be lauched as a background process. It can be stopped by
 using the -stop parameter or by removing the pid file. When it not 
