@@ -645,6 +645,21 @@ while (1) {
   		}
 		# Check every minute for hex_ident's that can be retiered:
 		if (($minute ne $previous_minute) || ($interrupted)) {
+			if (-e $pidfile) {
+                                my @cmd=`cat $pidfile`;
+                                $pidfilestatus="";
+                                for $line (@cmd) {
+                                        chomp($line);
+                                        if ($line =~ /^$pid$/){
+                                                $pidfilestatus="ok";
+                                        }
+                                }
+                                if ($pidfilestatus !~ /ok/) {
+                                        # The PID file was changed (by an outside process).
+                                        # This means it is time to exit.....
+                                        $interrupted = "The '$scriptname' ($pid) was interrupted. The pid with the pidfile $pidfile was changed by an outside process...!";
+                                }
+                        }
 			$previous_minute = $minute;
 			# Log overall statistics:
 			LOG("current number of flights=".scalar(keys %flight).",epoch=".epoch2date($epochtime).",msg_count=$message_count,pos_count=$position_count,flight_count=$flight_count,con_lost=$connectioncount.","L"); 
