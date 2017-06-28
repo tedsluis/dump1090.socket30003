@@ -97,6 +97,7 @@ my $lat;
 my $nopositions;
 my $debug = 0;
 my $verbose = 0;
+my $infile;
 GetOptions(
 	"restart!"=>\$restart,
 	"stop!"=>\$stop,
@@ -114,7 +115,8 @@ GetOptions(
 	"longitude=s"=>\$lon,
 	"latitude=s"=>\$lat,
 	"debug!"=>\$debug,
-	"verbose!"=>\$verbose
+	"verbose!"=>\$verbose,
+	"readcsv=s"=>\$infile
 ) or exit(1);
 #
 #===============================================================================
@@ -238,6 +240,8 @@ Optional parameters:
 					Default speed unit is $defaultspeedunit.
         -nopositions                    Does not display the number of position while
 	                                running interactive (launched from commandline).
+	-readcsv <filename>		read socket30003 data from a file instead of connecting to the socket directly.
+					(useful for converting previously captured data).
 	-debug                          Displays raw socket messages.
 	-verbose                        Displays verbose log messages.
 	-help				This help page.
@@ -557,16 +561,23 @@ $proto = getprotobyname('tcp');    #get the tcp protocol
 $connectioncount=0;
 my ($SOCKET);
 while (1) {
-	# create a socket handle (descriptor)
-	socket($SOCKET, AF_INET, SOCK_STREAM, $proto) or die "could not create socket : $!";
-	# connect to remote server
-	$iaddr = inet_aton($PEER_HOST) or die "Unable to resolve hostname : $PEER_HOST";
-	$paddr = sockaddr_in("30003", $iaddr);    #socket address structure    
-	connect($SOCKET , $paddr) or die "connect failed : $!";
-	LOG("Connected to $PEER_HOST on port 30003","D");
-	$connectioncount++;
-	#
-	# Read messages from the 30003 socket in a continuous loop:
+	if (!length $infile){
+		# create a socket handle (descriptor)
+		socket($SOCKET, AF_INET, SOCK_STREAM, $proto) or die "could not create socket : $!";
+		# connect to remote server
+		$iaddr = inet_aton($PEER_HOST) or die "Unable to resolve hostname : $PEER_HOST";
+		$paddr = sockaddr_in("30003", $iaddr);    #socket address structure    
+		connect($SOCKET , $paddr) or die "connect failed : $!";
+		LOG("Connected to $PEER_HOST on port 30003","D");
+		$connectioncount++;
+		#
+		# Read messages from the 30003 socket in a continuous loop:
+	}
+
+	else{
+		open($SOCKET, '<', $infile) or die("Couldn't open $infile for reading : $!");
+	}
+
 	my $errorcount = 0;
 	while ($message = <$SOCKET>){
 		$message_count++;
@@ -775,7 +786,17 @@ while (1) {
                 	print "positions:".$position_count, substr "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 0, $back;
 		}
 	}
-	LOG("lost TCP connection","D");
+
+	# If we're done and we're not reading from a file, there's a socket related problem.
+	if(!length $infile){
+		LOG("lost TCP connection","D");
+	}
+	# otherwise, operation succeeded
+	else{
+		LOG("File $infile processed successfully.", "W");
+		exit;
+	}
+		
 }
 
 # This cleanup routine will be executed even when the script is stopped by an 'exit' of CTRL-C.
